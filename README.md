@@ -4,7 +4,7 @@
 
 ### General
 
-- [Material de la cátedra](https://catedras.linti.unlp.edu.ar/)
+- [Material de la cátedra](https://catedras.linti.unlp.edu.ar/course/view.php?id=1276)
 - Contacto profesores:
   - Juan Pablo Pérez: jpablop@linti.unlp.edu.ar
   - Nicolás del Rio: ndelrio@info.unlp.edu.ar
