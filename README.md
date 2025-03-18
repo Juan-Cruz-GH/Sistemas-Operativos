@@ -5,6 +5,7 @@
 ### General
 
 - [Material de la cátedra](https://catedras.linti.unlp.edu.ar/course/view.php?id=1276)
+- [Explicación configuración VM con SSH](https://youtu.be/7UB9rKiu_yU?si=4Cxrm5o98uuEct5J)
 - Contacto profesores:
   - Juan Pablo Pérez: jpablop@linti.unlp.edu.ar
   - Nicolás del Rio: ndelrio@info.unlp.edu.ar
