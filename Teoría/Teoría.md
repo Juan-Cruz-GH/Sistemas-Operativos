@@ -243,7 +243,66 @@
 
 <h1 align="center">Clase 3 - 27 de marzo, 2025</h1>
 
-##
+## Llamadas al Sistema
+
+### Definición
+
+- Una llamada al sistema o system call/syscall es el mecanismo usado por un proceso de usuario para solicitarle al SO un **servicio**, ya que éstos son protegidos por el mismo.
+- En este sentido, se puede ver al SO como un **servidor** y a los procesos de usuario como los **clientes** que realizan peticiones al SO vía system calls.
+- Concretamente, las syscalls son métodos que el SO provee vía una API.
+  - Por esto, cada método recibe una cierta cantidad de parámetros de determinado tipo y tiene un valor de retorno.
+- En Unix, GNU/Linux la API que define estos mecanismos se llama libc.
+
+### Flujo de ejecución
+
+Por ejemplo, si usamos la función `read()` en C:
+
+1. Se agregan a la pila los parámetros enviados en la llamada al `read()` de la librería desde nuestro código.
+2. Se invoca a la función `read()` implementada en la librería y se comienza su ejecución.
+3. Dentro de la librería, `read()` es una función simple que solo indicará el número de syscall que se quiere ejecutar y permitirá realizar la llamada al sistema correspondiente.
+4. Esta función ejecuta el TRAP (Interrupción por Software) para cambiar a modo Kernel y pasarle el control al SO.
+5. Para todas las syscalls se usa la misma interrupción.
+6. La forma de identificar a la syscall invocada es a través del valor del registro.
+7. Una vez que el SO tiene el control, verificará cuál es la llamada al sistema que debe atender y ejecutará el código correspondiente.
+8. En este punto se accede al dispositivo de almacenamiento para obtener el archivo solicitado y leerlo en memoria
+
+### Registros
+
+- **EAX**: número de syscall.
+- EBX: primer parámetro.
+- ECX: segúndo parámetro.
+- EDX: ...
+- La instrucción que inicia la system call: int 80h (32 bits, syscall en 64 bits).
+
+### Categorías
+
+Existen varias categorías de syscalls según su propósito:
+
+- Control de procesos (`fork()`, `waitpid()`, `execve()`, `exit()`).
+- Manejo de archivos (`òpen()`, `close()`, `read()`, `write()`, `lseek()`, `stat()`).
+- Manejo de dispositivos.
+- Mantenimiento de info del sistema.
+- Comunicaciones.
+
+NOTA: Los nombres semánticos de las systemcalls son distintos entre UNIX y Win32.
+
+### Características de las syscalls en GNU/Linux
+
+- Son identificadas unívocamente por un número.
+- Pueden tener 6 parámetros como máximo.
+- Para x86 en 32 bits están definidas en `arch/x86/entry/syscalls/syscall_32.tbl`.
+- Para x86 en 64 bits están definidas en `arch/x86/entry/syscalls/syscall_64.tbl`.
+- La primer tarea que realiza el dispatcher cuando se produce una interrupción es verificar el número en la tabla correspondiente y ejecutar las funciones asociadas.
+
+![Tabla](https://i.imgur.com/DeAbe1q.png)
+
+### Cuidados con los parámetros
+
+- Los parámetros de la syscall deben manejarse con mucho cuidado, dado que **se configuran en el espacio de usuario**:
+  - No se puede asumir que sean correctos.
+  - En el caso de pasarse punteros, no pueden apuntar al espacio del Kernel por cuestiones de seguridad (de no verificarse, en un read por ejemplo el buffer podría tener una dirección del Kernel y sobrescribir datos sensibles).
+  - Los punteros deben ser siempre válidos (que apunten a direcciones que existen), si no, podría producirse un Kernel Panic.
+  - El Kernel deberá tener acceso al espacio de usuario con APIs especiales que garanticen que se accede al espacio de direcciones de quien invocó la syscall (`get_user()`, `put_user()`, `copy_from_user()`, `copy_to_user()`).
 
 ---
 
