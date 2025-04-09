@@ -19,9 +19,35 @@ https://gitlab.com/unlp-so/codigo-para-practicas/-/tree/main/practica
 
 #### 1. ¿Qué es una System Call? ¿Para qué se utiliza?
 
+Una System Call es un pedido que realiza un programa al kernel del sistema operativo para realizar una tarea específica que el programa no puede hacer por sí mismo debido a que se trata de una operación protegida.
+
+Las System Calls se pueden usar para trabajar con archivos, para manejar procesos, para comunicación en redes, para acceder a dispositivos de E/S, etc.
+
 #### 2. ¿Para qué sirve la macro syscall? Describa el propósito de cada uno de sus parámetros. [Ayuda](http://www.gnu.org/software/libc/manual/html_mono/libc.html#System-Calls)
 
+La macro **syscall** se usa en Linux para hacer llamadas directas al sistema operativo desde un programa en espacio de usuario. Es parte del encabezado `<unistd.h>` o `<sys/syscall.h>` en C y permite invocar funciones del kernel sin pasar por los envoltorios (wrappers) estándar de la biblioteca C (glibc), como open(), read(), write(), etc.
+
+La ventaja de usar syscall() directamente es que nos permite hacer llamadas que tal vez no estén expuestas por la biblioteca estándar, además de proveer una forma más directa o controlada de invocar una syscall específica.
+
+La firma de la función es:
+
+```c
+long syscall(long number, ...);
+```
+
+Posee un número variable de argumentos:
+
+- **number**: es el número de la syscall que se quiere ejecutar. Cada llamada al sistema tiene un número único que la identifica. Estos números están definidos en archivos como `/usr/include/asm/unistd.h` o `/usr/include/x86_64-linux-gnu/asm/unistd_64.h` (write → 1; read → 0; exit → 60, etc). Las constantes de estos valores están en `<sys/syscall.h>`.
+- **...**: argumentos variables, dependen de cada syscall. Por ejemplo, para write se necesita el descriptor del archivo, un buffer, y la cantidad de bytes a escribir.
+
 #### 3. Ejecute el siguiente comando e identifique el propósito de cada uno de los archivos que encuentra `ls -lh /boot | grep vmlinuz`
+
+- En la carpeta `/boot` se guardan los archivos del sistema necesarios para arrancar (bootear) Linux. Acá están los kernels, los inits, y algunos archivos de configuración de arranque.
+- vmlinuz es el kernel **comprimido** de Linux que se carga en el arranque del sistema. Cuando el sistema arranca, el bootloader (como GRUB) carga uno de estos archivos vmlinuz-\* y empieza el proceso de iniciar el sistema operativo.
+- Cuando ejecuto el comando en la máquina virtual de la cátedra, obtengo tres líneas:
+  - **vmlinuz-6.1.0-29-amd64**: Patch específico de la versión 6.1.0 del kernel.
+  - **vmlinuz-6.1.0-31-amd64**: Idem.
+  - **vmlinuz-6.13.7**: La versión a la que actualizamos en la práctica 1. No posee amd64 debido a que fue compilada manualmente.
 
 #### 4. Acceda al codigo fuente de GNU Linux, sea visitando https://kernel.org/ o bien trayendo el código del kernel (cuidado, como todo software monolítico son unos cuantos gigas) `git clone https://github.com/torvalds/linux.git`
 
