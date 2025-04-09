@@ -53,9 +53,42 @@ Posee un número variable de argumentos:
 
 #### 5. ¿Para qué sirve el siguiente archivo? `arch/x86/entry/syscalls/syscall_64.tbl`
 
+El archivo `arch/x86/entry/syscalls/syscall_64.tbl` forma parte del código fuente del Kernel y es esencial en el proceso de definición de las syscalls para arquitecturas de 64 bits en x86 (también conocidas como x86_64 o AMD64). En pocas palabras, este archivo le dice al kernel qué número de syscall corresponde a qué función del sistema.
+
+Este archivo es básicamente una tabla, y cada línea representa una syscall. El formato de la tabla es:
+
+`<número> <abi> <nombre_syscall> <nombre_función_kernel>`
+
+- **número**: Número identificador de la syscall.
+- **abi**: Application Binary Interface. Puede ser common, 64, x32, etc.
+- **nombre_syscall**: Nombre simbólico de la syscall (write, read, etc).
+- **nombre_función_kernel**: Nombre de la función interna que maneja esa syscall dentro del código del kernel.
+
 #### 6. ¿Para qué sirve la herramienta strace? ¿Cómo se usa?
 
+**strace** es una herramienta de línea de comandos en Linux que sirve para rastrear y mostrar las syscalls (llamadas al sistema) que hace un programa mientras se ejecuta.
+
+Es útil para depurar errores, entender el comportamiento de programas, o ver por qué un proceso está fallando.
+
+- Su uso básico es: `strace ./mi_programa`
+- Seguir un proceso que está en ejecución: `strace -p <PID>`
+- Filtrar por tipo de syscall: `strace -e trace=file ./mi_programa`
+
 #### 7. ¿Para qué sirve la herramienta ausyscall? ¿Cómo se usa?
+
+La herramienta **ausyscall** se usa para mapear números de llamadas al sistema (syscalls) con sus nombres correspondientes, y viceversa. Es útil para analizar registros de auditoría (como los generados por auditd) donde las llamadas al sistema aparecen como números y no como nombres legibles.
+
+Sus funciones son:
+
+- Traducir números de syscalls a nombres (ej: 59 → execve).
+- Traducir nombres de syscalls a números (ej: openat → 257 en x86_64).
+- Mostrar las syscalls disponibles según la arquitectura del sistema (x86, x86_64, arm, etc.).
+
+Cómo se usa:
+
+- Obtener el nombre de una syscall por su id: `ausyscall 59` → execve.
+- Obtener el número de una syscall por su nombre: `ausyscall execve` → 59.
+- Listar todas las syscalls de la arquitectura actual: `ausyscall --dump`.
 
 ### Práctica guiada - La System Calls que vamos a implementar accederán a la estructura [task_struct](https://alex-xjk.github.io/post/taskstruct/) que representa cada proceso en el sistema. Ha evolucionado con el tiempo, pero en las versiones más recientes del kernel (6.x), sigue teniendo los mismos principios básicos con nuevas adiciones y modificaciones. Es la estructura utilizada por el [scheduler](https://docs.kernel.org/scheduler/sched-eevdf.html) para planificar las tareas del Sistema Operativo.
 
