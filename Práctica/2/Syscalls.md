@@ -339,8 +339,127 @@ run: all
 
 #### 1. Ejecute el programa anteriormente compilado: `./get_task_info`. Cual es el output del programa?
 
+El output del programa es:
+
+```
+Información de los procesos en ejecución:
+----------------------------------------
+PID: 1 | Nombre: systemd | Estado: 1
+PID: 2 | Nombre: kthreadd | Estado: 1
+PID: 3 | Nombre: pool_workqueue_ | Estado: 1
+PID: 4 | Nombre: kworker/R-rcu_g | Estado: 8
+PID: 5 | Nombre: kworker/R-sync_ | Estado: 8
+PID: 6 | Nombre: kworker/R-slub_ | Estado: 8
+PID: 7 | Nombre: kworker/R-netns | Estado: 8
+PID: 9 | Nombre: kworker/0:1 | Estado: 8
+PID: 12 | Nombre: kworker/R-mm_pe | Estado: 8
+PID: 13 | Nombre: rcu_tasks_kthre | Estado: 8
+PID: 14 | Nombre: rcu_tasks_rude_ | Estado: 8
+PID: 15 | Nombre: rcu_tasks_trace | Estado: 8
+PID: 16 | Nombre: ksoftirqd/0 | Estado: 1
+PID: 17 | Nombre: rcu_preempt | Estado: 8
+PID: 18 | Nombre: rcu_exp_par_gp_ | Estado: 1
+PID: 19 | Nombre: rcu_exp_gp_kthr | Estado: 1
+PID: 20 | Nombre: migration/0 | Estado: 1
+PID: 21 | Nombre: idle_inject/0 | Estado: 1
+PID: 22 | Nombre: cpuhp/0 | Estado: 1
+PID: 23 | Nombre: cpuhp/1 | Estado: 1
+PID: 24 | Nombre: idle_inject/1 | Estado: 1
+PID: 25 | Nombre: migration/1 | Estado: 1
+PID: 26 | Nombre: ksoftirqd/1 | Estado: 1
+PID: 28 |
+----------------------------------------
+```
+
 #### 2. Luego de ejecutar el programa ahora ejecute: `sudo dmesg`. ¿Cuál es el output? Por qué? (recuerde printk y lea el man de dmesg)
 
-#### 3. Ejecute el programa anteriormente compilado con la herramienta strace: `strace get_task_info`. Aclaración: Si el programa strace no está instalado, puede instalarlo en distribuciones basadas en Debian con: `sudo apt-get install strace`.
+Lo que veo al ejecutar `dmesg` son los mensajes generados por las llamadas a `printk` que realiza la systemcall **get_task_info**.
+
+Este `printk()` se ejecuta dentro del bucle `for_each_process(task)`, lo que significa que cada vez que la syscall recorre un proceso activo, imprime su PID y su nombre al log del kernel.
+
+#### 3. Ejecute el programa anteriormente compilado con la herramienta strace: `strace ./get_task_info`. Aclaración: Si el programa strace no está instalado, puede instalarlo en distribuciones basadas en Debian con: `sudo apt-get install strace`.
 
 #### En alguna parte del log de strace debería ver algo similar a lo siguiente: `syscall_0x1c4(0xffffdf859ba0, 0x400, 0xaaaabe110740, 0xffff9cc790c0, 0xbd2cc5d5aef6ff14, 0xffff9cc22078) = 0x400`. Si luego ejecuto: `# echo $((0x1C4))`. ¿Qué valor obtengo? Por qué?
+
+El output al correr el comando `strace ./get_task_info` es:
+
+```
+execve("./get_task_info", ["./get_task_info"], 0x7ffef0f082b0 /* 32 vars */) = 0
+brk(NULL)                               = 0x557ae4200000
+mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f55696bc000
+access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No existe el fichero o el directorio)
+openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+newfstatat(3, "", {st_mode=S_IFREG|0644, st_size=22426, ...}, AT_EMPTY_PATH) = 0
+mmap(NULL, 22426, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f55696b6000
+close(3)                                = 0
+openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\20t\2\0\0\0\0\0"..., 832) = 832
+pread64(3, "\6\0\0\0\4\0\0\0@\0\0\0\0\0\0\0@\0\0\0\0\0\0\0@\0\0\0\0\0\0\0"..., 784, 64) = 784
+newfstatat(3, "", {st_mode=S_IFREG|0755, st_size=1922136, ...}, AT_EMPTY_PATH) = 0
+pread64(3, "\6\0\0\0\4\0\0\0@\0\0\0\0\0\0\0@\0\0\0\0\0\0\0@\0\0\0\0\0\0\0"..., 784, 64) = 784
+mmap(NULL, 1970000, PROT_READ, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7f55694d5000
+mmap(0x7f55694fb000, 1396736, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x26000) = 0x7f55694fb000
+mmap(0x7f5569650000, 339968, PROT_READ, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x17b000) = 0x7f5569650000
+mmap(0x7f55696a3000, 24576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1ce000) = 0x7f55696a3000
+mmap(0x7f55696a9000, 53072, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7f55696a9000
+close(3)                                = 0
+mmap(NULL, 12288, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f55694d2000
+arch_prctl(ARCH_SET_FS, 0x7f55694d2740) = 0
+set_tid_address(0x7f55694d2a10)         = 2977
+set_robust_list(0x7f55694d2a20, 24)     = 0
+rseq(0x7f55694d3060, 0x20, 0, 0x53053053) = 0
+mprotect(0x7f55696a3000, 16384, PROT_READ) = 0
+mprotect(0x557ac622c000, 4096, PROT_READ) = 0
+mprotect(0x7f55696f4000, 8192, PROT_READ) = 0
+prlimit64(0, RLIMIT_STACK, NULL, {rlim_cur=8192*1024, rlim_max=RLIM64_INFINITY}) = 0
+munmap(0x7f55696b6000, 22426)           = 0
+syscall_0x1d4(0x7ffe80ee6130, 0x400, 0x557ac622cdd8, 0, 0x7f55696c8680, 0x7f55696f6ad0) = 0x400
+newfstatat(1, "", {st_mode=S_IFCHR|0620, st_rdev=makedev(0x88, 0), ...}, AT_EMPTY_PATH) = 0
+getrandom("\x60\xe4\xd2\x6d\x6b\xad\xec\xf0", 8, GRND_NONBLOCK) = 8
+brk(NULL)                               = 0x557ae4200000
+brk(0x557ae4221000)                     = 0x557ae4221000
+write(1, "\n", 1
+)                       = 1
+write(1, "Informaci\303\263n de los procesos en "..., 44Información de los procesos en ejecución:
+) = 44
+write(1, "--------------------------------"..., 41----------------------------------------
+) = 41
+write(1, "PID: 1 | Nombre: systemd | Estad"..., 1014PID: 1 | Nombre: systemd | Estado: 1
+PID: 2 | Nombre: kthreadd | Estado: 1
+PID: 3 | Nombre: pool_workqueue_ | Estado: 1
+PID: 4 | Nombre: kworker/R-rcu_g | Estado: 8
+PID: 5 | Nombre: kworker/R-sync_ | Estado: 8
+PID: 6 | Nombre: kworker/R-slub_ | Estado: 8
+PID: 7 | Nombre: kworker/R-netns | Estado: 8
+PID: 9 | Nombre: kworker/0:1 | Estado: 8
+PID: 12 | Nombre: kworker/R-mm_pe | Estado: 8
+PID: 13 | Nombre: rcu_tasks_kthre | Estado: 8
+PID: 14 | Nombre: rcu_tasks_rude_ | Estado: 8
+PID: 15 | Nombre: rcu_tasks_trace | Estado: 8
+PID: 16 | Nombre: ksoftirqd/0 | Estado: 1
+PID: 17 | Nombre: rcu_preempt | Estado: 8
+PID: 18 | Nombre: rcu_exp_par_gp_ | Estado: 1
+PID: 19 | Nombre: rcu_exp_gp_kthr | Estado: 1
+PID: 20 | Nombre: migration/0 | Estado: 1
+PID: 21 | Nombre: idle_inject/0 | Estado: 1
+PID: 22 | Nombre: cpuhp/0 | Estado: 1
+PID: 23 | Nombre: cpuhp/1 | Estado: 1
+PID: 24 | Nombre: idle_inject/1 | Estado: 1
+PID: 25 | Nombre: migration/1 | Estado: 1
+PID: 26 | Nombre: ksoftirqd/1 | Estado: 1
+) = 1014
+write(1, "PID: 28 |\n", 10PID: 28 |
+)             = 10
+write(1, "--------------------------------"..., 41----------------------------------------
+) = 41
+exit_group(0)                           = ?
++++ exited with 0 +++
+```
+
+Aproximadamente a la mitad del output, veo la línea similar a la pedida:
+
+`syscall_0x1d4(0x7ffe80ee6130, 0x400, 0x557ac622cdd8, 0, 0x7f55696c8680, 0x7f55696f6ad0) = 0x400`
+
+Cuando ejecuto `echo $((0x1d4))` recibo como resultado el número entero 468, que no solo es el número de la syscall que llamamos.
+
+Lo que ocurre acá es que **strace** solo sabe los nombres de las syscalls estándar (como read, write, fork, etc.). Como nuestra syscall es nueva, no conoce su nombre semántico y solo conoce su número, el cual es 0x1d4 en hexadecimal, o 468 en decimal.
