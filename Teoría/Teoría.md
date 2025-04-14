@@ -308,7 +308,27 @@ NOTA: Los nombres semánticos de las systemcalls son distintos entre UNIX y Win3
 
 <h1 align="center">Clase 4 - 10 de abril, 2025</h1>
 
-##
+## Hilos
+
+###
+
+###
+
+###
+
+###
+
+###
+
+###
+
+###
+
+###
+
+###
+
+###
 
 ---
 
