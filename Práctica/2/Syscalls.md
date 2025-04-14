@@ -186,13 +186,28 @@ SYSCALL_DEFINE2(get_threads_info, char __user *, buffer, size_t, length) {
 
 ##### a. ¿Para qué sirven los macros SYS_CALL_DEFINE?
 
-##### b. ¿Para que se utilizan la macros for_each_process y for_each_thread?
+Los macros **SYS_CALL_DEFINE** se usan para definir y mappear systemcalls a nombres simbólicos. Define un número de llamada al sistema (un entero) que se asigna a un nombre de macro específico. Este mapeo permite que las aplicaciones, en lugar de usar números, utilicen nombres de macros como sys_read, sys_write, etc. para solicitar servicios del sistema, lo cual es mucho más legible.
+
+##### b. ¿Para que se utilizan las macros for_each_process y for_each_thread?
+
+- `for_each_process` es un macro que permite loopear sobre todos los task_struct que existen en el sistema, es decir todos los procesos, incluyendo los procesos en estado running, sleeping, stopped y zombie.
+- `for_each_thread` es un macro que permite loopear sobre todos los hilos de un proceso determinado.
 
 ##### c. ¿Para que se utiliza la función copy_to_user?
 
+`copy_to_user` es una función del kernel que copia, de forma segura, datos de espacio kernel a espacio de usuario. Se usa debido a que el kernel se ejecuta en un espacio de memoria separado de otros programas. No se puede simplemente usar `memcpy()`, ya que hacer esto podría crashear el sistema o crear problemas de seguridad.
+
 ##### d. ¿Para qué se utiliza la función printk?, ¿porque no la típica printf?
 
-##### e. Podría explicar que hacen las sytem call que hemos incluido?
+La función `printk` es la versión del kernel de la función `printf` de la libc. Se usa para loggear mensajes al buffer del kernel, usualmente para debuggear.
+
+No se usa `printf` en este contexto debido a que el kernel Linux no tiene acceso a la libc, ya que ésta corre en espacio de usuario.
+
+##### e. Podría explicar que hacen las system call que hemos incluido?
+
+1. La primer systemcall (**my_sys_call**) recibe un entero y lo escribe en el buffer del kernel usando `printk`. Este output va hacia **dmesg**, no a la terminal.
+2. La segunda systemcall (**get_task_info**) loopea todos los procesos del sistema y para cada uno guarda en el buffer del kernel su PID, su nombre y el estado de ese proceso. Luego copia esta información hacia espacio de usuario para que el programa de usuario pueda leerlo.
+3. La tercer systemcall (**get_threads_info**) es similar a la anterior. Loopea todos los procesos, y para cada uno, loopea todos los hilos del mismo. Recolecta, para cada proceso, su nombre + PID y nombre + TID de cada uno de sus hilos. Almacena todo esto en un buffer dinámico (**kbuffer con kmalloc**), el cual luego se copia a espacio de usuario.
 
 #### 2. Modificaremos uno de los archivos Makefile del código del Kernel para indicar la compilación de nuestro código agregado en el paso anterior:
 
@@ -218,16 +233,16 @@ obj-y = fork.o exec_domain.o panic.o \
 - Debemos asignar un número único a nuestra system call, de modo que aumentaremos en 1 el número de la última.
 
 ```
-444 commonlandlock_create_ruleset               sys_landlock_create_ruleset
-445 commonlandlock_add_rule                     sys_landlock_add_rule
-446 commonlandlock_restrict_self                sys_landlock_restrict_self
-447 commonmemfd_secret                          sys_memfd_secret
-448 commonprocess_mrelease                      sys_process_mrelease
-449 commonfutex_waitv                           sys_futex_waitv
-450 commonset_mempolicy_home_node               sys_set_mempolicy_home_node
-451 common my_sys_call                          sys_my_sys_call
-452 common get_task_info                        sys_get_task_info
-453 common get_threads_info                     sys_get_threads_info
+444 common landlock_create_ruleset               sys_landlock_create_ruleset
+445 common landlock_add_rule                     sys_landlock_add_rule
+446 common landlock_restrict_self                sys_landlock_restrict_self
+447 common memfd_secret                          sys_memfd_secret
+448 common process_mrelease                      sys_process_mrelease
+449 common futex_waitv                           sys_futex_waitv
+450 common set_mempolicy_home_node               sys_set_mempolicy_home_node
+451 common my_sys_call                           sys_my_sys_call
+452 common get_task_info                         sys_get_task_info
+453 common get_threads_info                      sys_get_threads_info
 ```
 
 #### Ahora incluimos la declaración de nuestras system calls en los headers del kernel junto a las otras system calls. Es importante recordar que debemos aumentar el valor de \_\_NR_syscalls de acuerdo a la cantidad de system calls que hemos agregado, ya que este es el tamaño de un array interno dónde están los punteros a los manejadores de las system calls.
@@ -253,7 +268,7 @@ __SYSCALL(__NR_get_threads_info, sys_get_threads_info)
 
 #### 4. Lo próximo que debemos realizar es compilar el Kernel con nuestros cambios. Una vez seguidos todos los pasos de la compilación como lo vimos en el trabajo práctico 1, acomodamos la imagen generada y arrancamos el sistema con el nuevo kernel.
 
-#### 5. Ahora vamos a verificar que nuestras system calls nuevas ya son parte del kernel, para esto ejecutamos: `$ grep get_task_info "/boot/System.map-$(uname -r)"`
+#### 5. Ahora vamos a verificar que nuestras system calls nuevas ya son parte del kernel, para esto ejecutamos: `grep get_task_info "/boot/System.map-$(uname -r)"`
 
 #### Aquí deberíamos ver el mapa de símbolos correspondiente a nuestra system call en el System.map del Kernel recientemente compilado
 
@@ -294,9 +309,9 @@ int main() {
 }
 ```
 
-#### Nota: Cuando utilizamos llamadas al sistema, por ejemplo open() que permite abrir un archivo, no es necesario invocarlas de manera explícita, ya que por defecto la librería libc tiene funciones que encapsulan las llamadas al sistema. Luego lo compilamos para obtener nuestro programa. Para ello ejecutamos: `$ gcc -o get_task_info get_task_info.c`
+#### Nota: Cuando utilizamos llamadas al sistema, por ejemplo open() que permite abrir un archivo, no es necesario invocarlas de manera explícita, ya que por defecto la librería libc tiene funciones que encapsulan las llamadas al sistema. Luego lo compilamos para obtener nuestro programa. Para ello ejecutamos: `gcc -o get_task_info get_task_info.c`
 
-#### Por último nos queda ejecutar nuestro programa y ver el resultado. `$ ./get_task_info`
+#### Por último nos queda ejecutar nuestro programa y ver el resultado. `./get_task_info`
 
 #### Con lo visto en la Práctica 1 sobre Makefiles, construya un Makefile de manera que si ejecuto:
 
@@ -304,12 +319,28 @@ int main() {
 - **make clean**, limpia el ejecutable y el código objeto generado.
 - **make run**, ejecuta el programa.
 
+El makefile que usaré es:
+
+```make
+TARGET = get_task_info
+SRC = get_task_info.c
+
+all:
+	gcc -o $(TARGET) $(SRC)
+
+clean:
+	rm -f $(TARGET)
+
+run: all
+	./$(TARGET)
+```
+
 ### Monitoreando System Calls
 
-#### 1. Ejecute el programa anteriormente compilado`: `$ ./get_task_info`. Cual es el output del programa?
+#### 1. Ejecute el programa anteriormente compilado: `./get_task_info`. Cual es el output del programa?
 
-#### 2. Luego de ejecutar el programa ahora ejecute: `$ sudo dmesg`. ¿Cuál es el output? Por qué? (recuerde printk y lea el man de dmesg)
+#### 2. Luego de ejecutar el programa ahora ejecute: `sudo dmesg`. ¿Cuál es el output? Por qué? (recuerde printk y lea el man de dmesg)
 
-#### 3. Ejecute el programa anteriormente compilado con la herramienta strace: `$ strace get_task_info`. Aclaración: Si el programa strace no está instalado, puede instalarlo en distribuciones basadas en Debian con: `$ sudo apt-get install strace`.
+#### 3. Ejecute el programa anteriormente compilado con la herramienta strace: `strace get_task_info`. Aclaración: Si el programa strace no está instalado, puede instalarlo en distribuciones basadas en Debian con: `sudo apt-get install strace`.
 
 #### En alguna parte del log de strace debería ver algo similar a lo siguiente: `syscall_0x1c4(0xffffdf859ba0, 0x400, 0xaaaabe110740, 0xffff9cc790c0, 0xbd2cc5d5aef6ff14, 0xffff9cc22078) = 0x400`. Si luego ejecuto: `# echo $((0x1C4))`. ¿Qué valor obtengo? Por qué?
