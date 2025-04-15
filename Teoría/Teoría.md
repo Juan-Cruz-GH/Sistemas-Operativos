@@ -310,25 +310,185 @@ NOTA: Los nombres semánticos de las systemcalls son distintos entre UNIX y Win3
 
 ## Hilos
 
-###
+### Manejo de procesos en sistemas operativos antiguos
 
-###
+- El proceso es la unidad básica de uso de CPU y representa a un programa en ejecución.
+- Es también la unidad de asignación de los recursos: a los procesos se les asigna CPU, memoria, dispositivos.
+- Cada proceso tiene:
+  - Su espacio de direcciones propio y privado.
+  - Punteros a los recursos asignados (stacks, archivos, etc).
+  - Estructuras como la PCB.
+  - **Un solo hilo de control**:
+    - Un único flujo secuencial de ejecución.
+    - Se ejecuta una instrucción y cuando finaliza se ejecuta la siguiente.
+- Para ejecutar otro proceso, se debe llevar adelante un context switch.
 
-###
+### Evolución del hardware
 
-###
+- **Sistemas Dual-processor (DP)**:
+  - Tiene 2 procesadores físicos en el mismo chasis.
+  - Pueden estar en la misma motherboard o no.
+  - Cache y controlador independientes.
+- **Sistemas Dual-core**:
+  - Una CPU con dos cores por procesador físico.
+  - Un circuito integrado tiene 2 procesadores completos.
+  - Los 2 procesadores comparten cache y controlador.
+- En ambos casos, las APIC (Advanced Programmable Interrupt Controllers) están separadas por procesador. De esta manera proveen administración de interrupciones por procesador.
 
-###
+#### Multithreading Simultáneo
 
-###
+- También conocido como Hyper Threading, la implementación de Intel de este concepto.
+- Permite que el software programado para ejecutar múltiples hilos (multi-threaded) procese los hilos en paralelo dentro de un único procesador.
+- Simula dos procesadores lógicos dentro de un único procesador físico.
+  - Duplica solo algunas “secciones” de un procesador:
+    - Registros de Control (MMU, Interrupciones, Estado, etc).
+    - Registros de Propósito General (AX, BX, PC, Stack, etc).
+- Resultado: mejora en el uso del procesador de entre 20 y 30%.
 
-###
+### Evolución del software
 
-###
+- Es común dividir un proceso en diferentes “tareas” que, independientemente o colaborativamente, solucionan el problema.
+- Es común contar con un pool de procesadores para ejecutar nuestros procesos de forma simultánea.
+- Debido a que el hardware evolucionó, esto forzó al software a evolucionar también para poder aprovechar al máximo a los multicore.
+- Como resultado, se incrementa el rendimiento de aplicaciones y se evitan bloqueos.
+- Un ejemplo típico de esta evolución es la librería pthreads en C que nos permite realizar programas multihilados, pero además de esta librería:
+  - Java: heredar de “Thread”, implementar la interface “Runnable”.
+  - Delphi: Heredar de “TThread”.
+  - C#, C, etc.
+  - Ruby: Thread.new{CODIGO}.
+  - PHP: Heredar de Thread.
+  - Javascript: HTML5 Web Workers.
+  - Etc.
 
-###
+### Manejo de procesos e hilos en sistemas operativos actuales
 
-###
+- Actualmente, tenemos tanto procesos como hilos.
+- **Proceso**:
+  - Espacio de direcciones.
+  - Unidad de propiedad de recursos.
+  - Conjunto de threads, uno o más.
+- **Thread**:
+  - Unidad de trabajo → hilo de ejecución.
+  - Contexto del procesador.
+  - Stacks de usuario y de kernel.
+  - Variables propias.
+  - Acceso a memoria y a recursos del proceso.
+- Motivación: Por qué dividir una aplicación en threads?
+  - Para obtener paralelismo/ejecución en background y así mejorar los tiempos de respuesta y la usabilidad.
+  - Para aprovechar las ventajas de los multicore: con N CPUs pueden ejecutarse N hilos al mismo tiempo.
+  - A su vez, hacer esto trae sus complejidades:
+    - Sincronización.
+    - Escalabilidad: cantidad de threads, excesivos context switch de los hilos del mismo proceso, etc.
+- 3 procesos monohilo vs un proceso con 3 hilos:
+
+![3 procesos monohilo vs un proceso con 3 hilos](https://i.imgur.com/UzGfqWk.png)
+
+- Uso de hilos para aprovechar tiempos muertos:
+
+![Uso de hilos para aprovechar tiempos muertos](https://i.imgur.com/kRm9rBb.png)
+
+### Estructura de un hilo
+
+Cada hilo tiene:
+
+- Un **estado** de ejecución.
+- Un **contexto** de procesador.
+- **Stacks** (uno en modo usuario y otro en modo kernel).
+- Variables propias.
+- Acceso a memoria y recursos del proceso:
+  - Archivos abiertos.
+  - Señales.
+  - Código.
+  - Todos estos datos se comparten entre todos los hilos del proceso.
+- TCB (Thread Control Block).
+- Es la unidad básica de utilización de CPU.
+
+### Ventajas del uso de hilos
+
+| Característica | Procesos                                                                                                                                           | Hilos                                                                                                                                                            |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Context switch | El SO debe intervenir con el fin de salvar el ambiente del proceso saliente y recuperar el ambiente del nuevo.                                     | El cambio de contexto solo se realiza a nivel de registros y no espacio de direcciones. Lo lleva a cabo el proceso sin necesidad de intervención del SO.         |
+| Creación       | Implica la creación de un nuevo espacio de direcciones, PCB, PC, etc. Lo lleva a cabo el SO.                                                       | Implica la creación de una TCB, registros, PC y un espacio para el stack. Lo hace el mismo proceso sin intervención del SO.                                      |
+| Destrucción    | El SO debe intervenir con el fin de salvar el ambiente del proceso saliente y eliminar su PCB.                                                     | La tarea se realiza dentro del proceso sin necesidad de intervención del SO.                                                                                     |
+| Planificación  | Es llevada a cabo por el sistema operativo. El cambio implica cambios de contexto continuos.                                                       | Es responsabilidad del desarrollador quien debe planificar sus hilos. Es menos costoso, pero puede traer desventajas aparejadas.                                 |
+| Protección     | El SO garantiza la protección a través de distintos mecanismos de seguridad. La comunicación entre ellos implica el uso de técnicas mas avanzadas. | La protección debe darse desde el lado del desarrollo. Todos los hilos comparten el mismo espacio de direcciones. Un hilo podría bloquear la ejecución de otros. |
+
+### User Level Thread (ULT)
+
+- El programa, en modo usuario, se encarga de la gestión de los hilos por medio de una librería de threading que provee primitivas para crear, destruir, planificar, etc, a los hilos.
+- El kernel no se entera de estos threads, son invisibles para él.
+- Ejemplos:
+  - Java VM.
+  - POSIX Threads.
+  - Solaris Threads.
+- **Ventajas ✅**:
+  - Todos los hilos del proceso comparten el espacio de direcciones.
+  - Cada proceso planifica sus hilos como más le convenga.
+  - Podrían reemplazarse llamadas al sistema bloqueantes por otras que no bloqueen.
+  - Portabilidad: pueden correr en distintas plataformas.
+  - No requiere cambios para su “existencia”.
+  - No es necesario que el SO soporte hilos.
+- **Desventajas ❌**:
+  - No se puede ejecutar hilos del mismo proceso en distintos procesadores.
+  - Si un hilo produce un Page Fault, todo el proceso se bloquea.
+  - Un hilo podría monopolizar el uso de la CPU por parte del proceso.
+  - Bloqueo del proceso durante una System Call bloqueante.
+
+### Kernel Level Thread (KLT)
+
+- La gestión completa de los hilos se realiza en modo Kernel.
+- Ejemplos:
+  - Windows NT/2000.
+  - Linux.
+- **Ventajas ✅**:
+  - Se puede multiplexar hilos del mismo proceso en diferentes procesadores.
+  - Independencia de bloqueos entre Threads de un mismo proceso.
+- **Desventajas ❌**:
+  - Cambios de modo de ejecución para la gestión (planificación, creación, destrucción, etc).
+
+### Combinaciones
+
+- Se puede combinar a los ULT con los KLT de muchas formas.
+- En este tipo de sistemas, la creación de hilos se realiza a nivel de usuario y éstos son mapeados a una cantidad igual o menor de KLT.
+- La sincronización de hilos en este modelo permite que un hilo se bloquee y otros hilos del mismo proceso sigan ejecutándose.
+- Permite que hilos de usuario mapeados a distintos KLT puedan ejecutarse en distintos procesadores.
+- Este enfoque aprovecha las ventajas de ambos tipos de hilos.
+- Hay 3 tipos:
+  - Uno a uno.
+  - Muchos a uno.
+  - Muchos a muchos.
+
+#### Uno a uno (1:1)
+
+- Cada ULT se mapea con un KLT.
+- Cada vez que se necesita un ULT se debe crear un KLT → Introduce un costo alto.
+- Si se bloquea un ULT, otro hilo del proceso puede seguir ejecutándose.
+- La concurrencia y/o paralelismo es máximo, ya que cada hilo puede correr en un procesador distinto.
+- Ejemplos:
+  - Implementaciones UNIX tradicionales.
+
+#### Muchos a uno (M:1)
+
+- Muchos ULT mapean a un único KLT.
+- Usado en sistemas que no soportan KLT.
+- Si se bloquea un ULT, se bloquea todo el proceso.
+- Java sobre un sistema que no soporta KLT.
+- Ejemplos:
+  - Windows NT.
+  - Solaris.
+  - Linux.
+  - OS/2.
+  - OS/390.
+  - MACH.
+
+#### Muchos a muchos (M:N)
+
+- Muchos ULT mapean a muchos KLT.
+- Este modelo multiplexa los ULT en KLT, logrando un balanceo razonable:
+  - No tiene el costo del modelo 1:1.
+  - Minimiza los problemas de bloqueo del modelo M:1.
+- Ejemplos:
+  - TRIX.
 
 ---
 
