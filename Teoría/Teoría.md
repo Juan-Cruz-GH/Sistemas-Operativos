@@ -1,4 +1,4 @@
-<h1 align="center">Clase 1 - 13 de marzo, 2025</h1>
+<h1 align="center">Clase 1 - 12 de marzo, 2025</h1>
 
 ## Sistema Operativo
 
@@ -122,7 +122,7 @@
 
 ---
 
-<h1 align="center">Clase 2 - 20 de marzo, 2025</h1>
+<h1 align="center">Clase 2 - 19 de marzo, 2025</h1>
 
 ## Kernel
 
@@ -241,7 +241,7 @@
 
 ---
 
-<h1 align="center">Clase 3 - 27 de marzo, 2025</h1>
+<h1 align="center">Clase 3 - 26 de marzo, 2025</h1>
 
 ## Llamadas al Sistema
 
@@ -306,7 +306,7 @@ NOTA: Los nombres semánticos de las systemcalls son distintos entre UNIX y Win3
 
 ---
 
-<h1 align="center">Clase 4 - 10 de abril, 2025</h1>
+<h1 align="center">Clase 4 - 9 de abril, 2025</h1>
 
 ## Hilos
 
@@ -492,18 +492,18 @@ Cada hilo tiene:
 
 ---
 
-<h1 align="center">Clase 5 - 17 de abril, 2025</h1>
+<h1 align="center">Clase 5 - 16 de abril, 2025</h1>
+
+## Virtualización
+
+---
+
+<h1 align="center">Clase 6 - 23 de abril, 2025</h1>
 
 ##
 
 ---
 
-<h1 align="center">Clase 6 - 24 de abril, 2025</h1>
-
-##
-
----
-
-<h1 align="center">Clase 7 - 1 de mayo, 2025</h1>
+<h1 align="center">Clase 7 - 30 de abril, 2025</h1>
 
 ##
