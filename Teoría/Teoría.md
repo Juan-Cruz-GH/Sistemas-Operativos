@@ -496,6 +496,254 @@ Cada hilo tiene:
 
 ## Virtualización
 
+### Concepto
+
+- Técnica que permite realizar una abstracción de los recursos de una computadora: Es una capa de abstracción sobre el hardware para obtener una mejor utilización de los recursos y flexibilidad.
+- Es una capa abstracta que desacopla el hardware físico del sistema.
+- Permite ocultar detalles técnicos a través de encapsulación.
+- Permite, entre otras cosas, que una computadora pueda realizar el trabajo de varias, a través de la compartición de recursos de un único dispositivo de hardware.
+- Permite que haya múltiples máquinas virtuales (VM), o entornos virtuales (EV), con distintos (o iguales) sistemas operativos corriendo de manera aislada.
+- Cada VM tiene su propio conjunto de hardware virtual (RAM, CPU, NIC, etc.) sobre el cual se ejecuta el SO “guest”.
+- El SO “guest” ve un conjunto consistente de hw, no el hardware real (aunque a través de ciertas configuraciones podría ver parte del hardware real).
+- Las VMs se representan y son encapsuladas en archivos dentro del filesystem.
+- Fácil de almacenar, copiar.
+- Fácil de hacer backup y restaurar.
+- Simple de expandir y agregar recursos.
+- Sistemas completos (aplicaciones ya configuradas, SO, hardware virtual) pueden moverse de un servidor a otro rápidamente.
+
+### Características esenciales de una máquina virtual
+
+- **Equivalencia / Fidelidad**:
+  - Un programa ejecutándose sobre un VMM debería comportarse de forma idéntica a si se estuviera ejecutando directamente sobre el hardware subyacente.
+- **Control de recursos / Seguridad**:
+  - El VMM tiene que controlar completamente y en todo momento el conjunto de recursos virtualizados que proporciona a cada guest.
+- **Eficiencia / Performance**:
+  - Una fracción estadísticamente dominante de instrucciones tienen que ser ejecutadas sin la intervención del VMM, o en otras palabras, directamente por el hardware.
+
+### Tipos de virtualización
+
+- **Process Level**:
+  - Permite lograr portabilidad entre diferentes sistemas.
+  - Java Virtual Machine.
+- **Storage Level**:
+  - Presenta una vista lógica del almacenamiento al usuario.
+  - RAID, LVM, etc.
+- **Network Level**:
+  - Integra recursos de hardware de red con recursos de software.
+- **OS Level**:
+  - Permite la existencia de varias instancias de espacio de usuario aisladas (containers).
+- **System Level**:
+  - Permite la creación de máquinas virtuales.
+
+### Motivación
+
+Podemos virtualizar por muchas razones:
+
+- Tengo muchas máquinas servidores, poco usados.
+- Tengo que correr aplicaciones heredadas (legacy) que no pueden ejecutarse en hardware o SOs actuales.
+- Tengo que probar aplicaciones no seguras.
+- Tengo que crear un SO o entorno de ejecución con recursos limitados.
+- Tengo que simular la computadora real, pero con un subconjunto de recursos
+- Necesito usar un hardware que no tengo (necesito “crear la ilusión” de hardware).
+- Necesito simular redes de computadoras independientes.
+- Tengo que correr varios y distintos SO simultáneamente.
+- Necesito hacer testeo y monitoreo de performance.
+- Necesito que SOs existentes se ejecuten en ambientes multiprocesador que comparten memoria.
+- Necesito facilidad de migración.
+- Necesito ahorrar energía (tendencias de green IT o tecnología verde).
+
+### Software Host y Guest
+
+- El software host es el que simula.
+- El software guest es lo que se quiere simular, que puede ser un sistema operativo.
+
+### Monitor de máquinas virtuales (VMM)
+
+- También conocido como Hipervisor.
+- Es una porción de software que separa a las aplicaciones y al SO del hardware subyacente.
+- Provee una plataforma de virtualización que permite múltiples SO corriendo en un host al mismo tiempo.
+- Programa que se corre sobre el hardware para implementar las máquinas virtuales.
+- Se encarga de controlar los recursos y de la planificación de los guests.
+- Necesita ejecutarse en modo supervisor.
+- El software guest se ejecuta en modo usuario.
+- Las instrucciones privilegiadas en los guests implican traps al VMM.
+- El VMM interpreta/emula las instrucciones privilegiadas.
+
+### Tipos de instrucciones
+
+- **Inocuas o no privilegiadas**: Se ejecutan nativamente.
+- **Privilegiadas**: Provocan una interrupción al ser ejecutadas en modo usuario.
+- **Sensibles**: Se deben ejecutar en modo kernel.
+- Para construir un VMM alcanza con que todas las instrucciones que podrían afecta al correcto funcionamiento del VMM (instrucciones sensibles) siempre generen una excepción y pasen el control al VMM.
+- Las instrucciones no privilegiadas deben ejecutarse nativamente en el hardware (es decir, eficientemente).
+- Para que un sistema soporte virtualización, las instrucciones sensibles deben ser un subconjunto de las privilegiadas.
+- Cuando estoy virtualizando, el guest (corriendo en modo usuario) emitirá una instrucción privilegiada que NO debe ser ignorada, sino que debe generar un trap al SO.
+  - Mecanismo conocido como trap-and-emulate.
+  - No aplicable en arquitectura x86.
+
+### Mecanismo Trap And Emulate
+
+- Funciona similar a la emulación pero realiza una interpretación selectiva.
+- Las aplicaciones y el SO se ejecutan en modo usuario.
+- Aplicaciones ejecutan nativamente en el hardware.
+- VMM ejecuta en modo privilegiado.
+- Cuando se ejecuta una instrucción privilegiada en el guest SO (en modo usuario) se produce un “trap” al VMM.
+- VMM ejecuta las instrucciones necesarias y retorna el control el guest SO.
+- No puede ser utilizado en todas las ISAs. Debe cumplir con el teorema de Popek and Goldberg.
+- x86 no cumple con el teorema: **no todas las instrucciones sensitivas son privilegiadas** (por ej. popf).
+
+### Tipos de hipervisores
+
+#### Tipo 1
+
+- Se ejecuta en modo kernel.
+- Se ejecuta sobre el hardware.
+- Cada VM se ejecuta como un proceso de usuario en modo usuario.
+- El SO guest no requiere ser modificado.
+- Existen un modo kernel virtual y modo usuario virtual.
+- El SO guest se ejecuta en modo kernel virtual.
+- Siempre que la VM ejecuta una instrucción sensible, se produce una trap que procesa el hipervisor.
+  - Algunos hipervisores introducen extensiones que le evitan tener que traducir todas las instrucciones.
+- Debe tener asistencia del hardware siempre.
+
+#### Tipo 2
+
+- Se ejecuta como un programa de usuario sobre un SO host.
+- Arriba de él están los SO guests.
+- Interpreta un conjunto de instrucciones de máquina.
+- El SO host es quien se ejecuta sobre el hardware.
+- Su función principal de interpretar un subconjunto de las instrucciones de hardware de la máquina sobre la que corre.
+- Debe emularse el hardware que se mapea a los SO guest.
+
+### Técnicas de virtualización
+
+#### Emulación
+
+- Provee toda la funcionalidad del procesador deseado a través de software (ej: QUEMU, MAME).
+- Se puede emular un procesador sobre otro tipo de procesador.
+- Aplicación/SO emulado ejecuta en modo usuario.
+- Se reescribe el conjunto completo de instrucciones.
+- Todas las instrucciones son capturadas por el emulador.
+- Cada instrucción es interpretada y traducida a una (o varias) equivalente adecuada al hardware subyacente.
+- Tiende a ser lenta.
+
+#### Full Virtualization
+
+- Se trata de particionar un procesador físico en distintos contextos, donde cada uno de ellos corre sobre el mismo procesador.
+- Los SO guest deben ejecutar la misma arquitectura de hardware sobre la que corren.
+- No requiere que los guest se modifiquen.
+- Es en general la técnica mas utilizada.
+- El VMM analiza el flujo de ejecución.
+  - Los bloques que contienen instrucciones sensibles son modificados.
+  - Los bloques con instrucciones inocuas se ejecutan directamente en el hardware.
+- Se combina traducción binaria con ejecución directa.
+- Instrucciones no sensibles ejecutan directamente sobre el hardware.
+- El hipervisor continuamente analiza en runtime el flujo de ejecución (bloques de código) de los SO guest y “traduce” las instrucciones sensibles por llamadas al hipervisor.
+- Los bloques traducidos son ejecutados por la CPU directamente.
+- Permite mejorar el rendimiento al poner en cache los bloques traducidos.
+
+#### Asistida por hardware
+
+- Se necesitan CPU “virtualizables”.
+- Intel la llama VT (Tecnología de virtualización) y usa Root Mode y Non-Root Mode.
+- AMD la llama SVM (máquina virtual segura) y usa Host Mode y Guest Mode.
+- VMM ejecuta en Root Mode, VMs en Non-Root Mode.
+- Ms generan traps al hipervisor cuando se ejecutan instrucciones sensibles (Non-Root Mode).
+
+#### Paravirtualización
+
+- Los hipervisors tipo 1 y 2 ejecutan SO guests no modificados.
+- Se trata de tener SO guests modificados para mejorar el rendimiento.
+- Cuando se quiere ejecutar una instrucción sensible, el SO guest la transforma en una llamada al VMM que expone una API específica.
+- El VMM:
+  - No realiza traducción binaria completa.
+  - No debe emular instrucciones de hardware, lo cual hace que las llamadas se resuelvan de modo mas sencillo.
+- El SO guest es como un proceso de usuario que hace llamadas al SO (el hipervisor).
+- El hipervisor cuenta con una API, que es un conjunto de llamadas a procedimientos.
+- Los guests, en vez de invocar instrucciones sensibles, invocan a estas llamadas (hipercalls).
+- Se eliminan las instrucciones sensibles de los guest y se reemplazan por llamadas a la API especializada.
+- El hipervisor se transforma en un microkernel.
+- Decimos que un SO está paravirtualizado cuando se han eliminado, intencionalmente, algunas instrucciones sensibles (si se eliminan todas es paravirtualización completa si solo se eliminan algunas, se la llama paravirtualización parcial).
+- Si no se eliminan TODAS las instrucciones sensibles, el VMM deberá realizar traducción binaria.
+- Se puede implementar de dos formas:
+  - Recompilando el kernel del sistema guest:
+    - Los drivers y la forma de invocar a la API residen en el kernel.
+    - Es necesario instalar un sistema operativo modificado/específico.
+  - Instalando drivers paravirtualizados:
+    - La paravirtualización es parcial (para algunas funciones y dispositivos).
+    - Generalmente utilizada para placas de red, o gráficas.
+    - Esta es la técnica que se utiliza hoy en día.
+- Virtualización vs paravirtualización:
+  - Virtualización completa o nativa puede generar problemas de performance ya que tiene que emular la totalidad del hardware.
+  - Paravirtualización completa en kernel tiene mejor performance, pero soporta pocos SO, pues necesita modificar el SO original.
+  - Paravirtualización parcial en drivers es una solución intermedia.
+
+### Softwares virtualizadores
+
+#### VMWare Workstation
+
+- Es un hipervisor tipo 2.
+- Explora código buscando bloques básicos (instrucciones seguidas que no cambien el
+  program counter).
+- Si hay instrucciones sensibles, sustituye cada una por una llamada a VMware.
+- El bloque se pone en la cache de VMware, luego se ejecuta.
+- Si no hay instrucciones sensibles, el bloque se ejecuta tan rápido como si fuera nativa.
+- La acción de atrapar instrucciones sensibles y emularlas se conoce como traducción automática.
+- Generalmente tiene un costo en la performance:
+  - ~2% sobre CPU y RAM.
+  - Entre ~8% y ~20% para dispositivos de I/O.
+
+#### KVM
+
+- Kernel Based Virtual Machine
+- Infraestructura de virtualización para el kernel de Linux.
+- Soportado nativamente en el kernel desde 2.6.20.
+- Se lo considera tipo 1 ya que está embebida en el kernel del SO.
+- Virtualiza plataformas x86 de 32 y 64 bits.
+- Requiere un procesador con extensión para virtualización.
+- Sistemas Operativos guest que admite: versions de Linux, BSD, Solaris, Windows, Haiku, ReactOS, Plan 9, AROS Research Operating System, Android 2.2, GNU/Hurd (Debian K16), Minix 3.1.2a, Solaris 10 U3, Darwin 8.0.1, entre otros.
+- Soporta paravirtualización de algunos dispositivos para Linux, OpenBSD, FreeBSD, NetBSD, Plan 9 y Windows mediante API.
+
+#### ProxmoxVE
+
+- No es en si un hipervisor, sino que es una distribución GNU/Linux basada en Debian que agrupa funcionalidades de virtualización
+- Utiliza KVM como hypervisor y LXC para la gestión de contenedores. También utiliza QEMU para emular ciertas VMs.
+- Provee una interfaz web y una CLI para la gestión de las VMs.
+- Es de código abierto. Tiene versión gratis y paga (soporte).
+- Ya que usa KVM, aprovecha sus características como, por ejemplo, la migración en caliente.
+- Soporta CEPH, que permite crear un Sistema de archivos distribuido entre todos los hosts.
+- Se puede configurar en cluster (varios hosts corriendo proxmox y gestionarlos desde uno de ellos).
+- Su instalación es sencilla a través de una “.iso”. El instalador provee el SO y las herramientas.
+
+#### Hyper-V
+
+- Infraestructura de virtualización propietaria de Microsoft.
+- Requiere un procesador con extensión para virtualización.
+- Virtualiza plataformas x86 de 32 y 64 bits.
+- Se lo considera tipo 1, ya que está embebida en el Kernel del SO.
+- También conocido como Viridian fue introducido en el año 2008 en Windows 2008 server.
+- Es un hipervisor nativo. La funcionalidad se agrega como un Nuevo “Rol” en versions de Windows Server y Windows 10 Pro (no Home Edition).
+- Permite correr SO guest Windows, GNU/Linux, BSD y otros.
+- Junto con VMWare lideran el Mercado de los sistemas de virtualización empresariales.
+
+#### VMWare vSphere
+
+- Infraestructura de virtualización propietaria.
+- Es para servers.
+- Virtualiza plataformas x86 de 32 y 64 bits.
+- Virtualiza redes, firewalls, almacenamiento.
+- Incluye una importante suite de herramientas que permiten, de acuerdo a la licencia adquirida, utilizar un mayor o menos número de funciones.
+- ESXi, junto con Hyper-V, lideran el Mercado de los sistemas de virtualización empresariales.
+
+#### Xen
+
+- Infraestructura de virtualización de código abierto desarrollada por la Universidad de Cambridge.
+- Requiere un procesador con extensión para virtualización.
+- Virtualiza plataformas x86 de 32 y 64 bits.
+- Es un hipervisor nativo y también soporta paravirtualización.
+- Permite correr SO guest Windows, GNU/Linux, BSD y otros.
+- Permite la migración de máquinas virtuales en caliente entre miembros de un cluster XEN.
+
 ---
 
 <h1 align="center">Clase 6 - 23 de abril, 2025</h1>
