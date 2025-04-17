@@ -10,27 +10,105 @@ Para realizar esta práctica se puede usar la misma máquina virtual de la prác
 
 #### 1. ¿Cuál es la diferencia fundamental entre un proceso y un thread?
 
+La diferencia fundamental entre un proceso y un thread es que un proceso es **un programa en ejecución**, y un thread es **una unidad de ejecución de un proceso**.
+
+Debido a esto, **diferentes procesos no pueden compartir el mismo espacio de direcciones, pero diferentes hilos de un mismo proceso sí**.
+
 #### 2. ¿Qué son los User-Level Threads (ULT) y cómo se diferencian de los Kernel-Level Threads (KLT)?
+
+Los User-Level Threads y los Kernel-Level Threads son dos enfoques para implementar hilos en un SO, y se diferencian principalmente en **quién los gestiona y cómo interactúan con el kernel**.
+
+Los ULT son hilos gestionados completamente en espacio de usuario por una biblioteca (ej: pthread en Linux) sin soporte directo del kernel.
+
+Los KLT son hilos gestionados directamente por el kernel.
 
 #### 3. ¿Quién es responsable de la planificación de los ULT? ¿y los KLT? ¿Cómo afecta esto al rendimiento en sistemas con múltiples núcleos?
 
+- El responsable de la planificación de los ULT es la biblioteca de manejo de hilos que se use.
+- El responsable de la planificación de los KLT es el kernel.
+- En sistemas con múltiples núcleos:
+  - ULT no es ideal, ya que no provee paralelismo real, si no solo concurrencia: solo un hilo del proceso se ejecuta a la vez.
+  - KLT es ideal, ya que provee paralelismo: pueden ejecutarse varios hilos del proceso en paralelo, uno por núcleo.
+
 #### 4. ¿Cómo maneja el sistema operativo los KLT y en qué se diferencian de los procesos?
 
+El SO maneja los KLT de la siguiente manera:
+
+- **Planificación**: El kernel decide qué hilo se ejecuta, cuándo y en qué CPU, igual que con los procesos.
+- **Context switch**: El kernel realiza el context switch entre hilos. Guarda y restaura el estado (registros, contador de programa, etc.).
+- **Bloqueos y sincronización**: El SO puede bloquear un hilo sin detener el proceso completo, porque sabe que son hilos independientes.
+- **Multiprocesamiento**: El kernel puede ejecutar hilos en múltiples núcleos simultáneamente.
+- **Gestión de recursos compartidos**: Como los hilos de un mismo proceso comparten memoria y otros recursos, el kernel garantiza acceso concurrente seguro usando primitivas como semáforos, mutex, etc.
+
+Los KLT se diferencian de los procesos de las siguientes formas:
+
+| Característica     | Proceso                                   | KLT (Hilo a nivel de kernel)                                  |
+| ------------------ | ----------------------------------------- | ------------------------------------------------------------- |
+| Entidad del SO     | Independiente                             | Parte de un proceso                                           |
+| Espacio de memoria | Tiene su **propio** espacio de memoria    | **Comparte** el espacio de memoria del proceso                |
+| Contexto           | Contexto completo (memoria, registros...) | Contexto parcial (solo registros e hilos)                     |
+| Coste de creación  | Alto                                      | Más bajo que un proceso                                       |
+| Cambio de contexto | Más costoso                               | Más ligero                                                    |
+| Comunicación       | Más difícil (IPC)                         | Más fácil (comparten memoria)                                 |
+| Fallos             | Si un proceso falla, muere solo él        | Si un hilo comete un error grave, puede dañar todo el proceso |
+| Paralelismo        | Puede ejecutarse en paralelo              | También puede (y con más flexibilidad)                        |
+
 #### 5. ¿Qué ventajas tienen los KLT sobre los ULT? ¿Cuáles son sus desventajas?
+
+Ventajas de los KLT:
+
+- Provee paralelismo real, ya que el kernel puede asignar diferentes hilos del mismo proceso a distintos núcleos.
+- Si un hilo se bloquea, los otros siguen funcionando, porque el kernel los ve como entidades independientes.
+- Provee mejor rendimiento en cargas intensivas.
+- El sistema operativo puede manejar la sincronización entre hilos.
+
+Desventajas de los KLT:
+
+- Los context switch se vuelven más costosos y frecuentes ya que requieren cambiar a modo kernel y guardar/recuperar más información.
+- El kernel tiene que gestionar más estructuras por cada hilo, lo cual añade overhead.
+- El planificador del SO decide la ejecución, así que no se puede personalizar tan fácilmente como con ULT.
 
 #### 6. Qué retornan las siguientes funciones:
 
 ##### a. `getpid()`
 
+- Es una systemcall que provee la libc.
+- Retorna el process ID (PID) del proceso que llama a la función.
+
 ##### b. `getppid()`
+
+- Es una systemcall que provee la libc.
+- Retorna el process ID (PID) del proceso padre del que llama a la función.
 
 ##### c. `gettid()`
 
+- Es una systemcall del kernel de linux.
+- Retorna el thread ID (TID) del hilo que llama a la función.
+  - En un proceso monohilo, el TID es igual al PID.
+  - En un proceso multihilo, cada hilo tiene el mismo PID pero distinto TID.
+
 ##### d. `pthread_self()`
+
+- Es una función de PThreads (librería que provee hilos KLT).
+- Retorna el TID del thread actual a nivel PThreads en forma de un tipo **pthread_t**, el cual no necesariamente es el mismo que retorna `gettid()`.
+  - Se usa para comparar hilos en PThreads.
 
 ##### e. `pth_self()`
 
+- Es una función de PTh (librería que provee hilos ULT).
+- Retorna el TID del thread actual a nivel PTh en forma de un tipo **pth_t**, el cual no necesariamente es el mismo que retorna `gettid()`.
+  - Se usa para comparar hilos en PTh.
+
 #### 7. ¿Qué mecanismos de sincronización se pueden usar? ¿Es necesario usar mecanismos de sincronización si se usan ULT?
+
+Para sincronización se pueden usar:
+
+- Mutex.
+- Semáforos.
+- Variables condición.
+- Barreras.
+
+Tanto en ULT como en KLT es necesario usar mecanismos de sincronización si nuestro programa tiene una o más variables que son manipuladas por varios hilos.
 
 #### 8. Procesos
 
@@ -38,7 +116,7 @@ Para realizar esta práctica se puede usar la misma máquina virtual de la prác
 
 ##### b. ¿Qué utilidad tiene ejecutar `fork()` + `exec()`?
 
-##### c. ¿Cuál de las 2 asigna un nuevo PID `fork()` o `exec()`?
+##### c. ¿Cuál de las 2 asigna un nuevo PID, `fork()` o `exec()`?
 
 ##### d. ¿Qué implica el uso de Copy-On-Write (COW) cuando se hace `fork()`?
 
