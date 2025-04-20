@@ -112,21 +112,57 @@ Tanto en ULT como en KLT es necesario usar mecanismos de sincronización si nues
 
 #### 8. Procesos
 
+- `fork()` crea un nuevo proceso que es una copia exacta del proceso actual.
+- `exec()` reemplaza el contenido del proceso actual (sus páginas) con un nuevo programa.
+- `wait()` permite a un proceso esperar a que uno o más de sus procesos hijos terminen.
+
 ##### a. ¿Qué utilidad tiene ejecutar `fork()` sin ejecutar `exec()`?
+
+Ejecutar `fork()` sin ejecutar `exec()` sería util cuando queremos que el proceso hijo ejecute una parte del mismo programa que el padre, pero realizando una tarea distinta en paralelo. Por ejemplo, si queremos procesar datos en paralelo o manejar múltiples conexiones en un servidor, podemos crear varios procesos hijos que ejecuten código distinto al del padre, pero dentro del mismo binario.
 
 ##### b. ¿Qué utilidad tiene ejecutar `fork()` + `exec()`?
 
+Ejecutar `fork()` + `exec()` sería útil cuando queremos que el proceso hijo ejecute un programa completamente distinto al del proceso padre.
+
 ##### c. ¿Cuál de las 2 asigna un nuevo PID, `fork()` o `exec()`?
+
+La función que asigna un nuevo PID es `fork()`, ya que ésta crea efectivamente un nuevo proceso. `exec()` no crea un nuevo proceso, por ende no asigna un nuevo PID.
 
 ##### d. ¿Qué implica el uso de Copy-On-Write (COW) cuando se hace `fork()`?
 
+Cuando se llama a `fork()`, el SO no copia inmediatamente toda la memoria del proceso padre al hijo. Eso sería lento y muchas veces innecesario. En su lugar, usa una técnica llamada Copy-On-Write (COW).
+
+Esta técnica consiste en:
+
+- Padre e hijo comparten las mismas páginas de memoria al principio.
+- Esas páginas se marcan como solo lectura.
+- Si alguno de los dos intenta escribir en una página, recién ahí el SO:
+  - Crea una copia privada de esa página solo para ese proceso.
+  - Actualiza su tabla de páginas para que tenga su propia versión.
+
+COW se usa porque en la mayoría de los casos se suele usar `exec()` luego de `fork()`, lo que reemplaza todo el espacio de memoria del proceso, por ende desperdiciando esa copia grande que se hubiera hecho al inicio si no se usa COW.
+
 ##### e. ¿Qué consecuencias tiene no hacer `wait()` sobre un proceso hijo?
 
+Si un proceso padre no hace `wait()`, su proceso hijo puede convertirse en un proceso zombie. Esto ocurre porque, al finalizar, el hijo libera su memoria, pero su información de salida (PID, código de retorno, etc.) permanece en la tabla de procesos del sistema operativo. Esta información se conserva hasta que el padre llame a `wait()`, permitiendo al sistema limpiar completamente al hijo. Si no se hace, los zombies pueden acumularse y agotar la tabla de procesos del sistema.
+
 ##### f. ¿Quién tendrá la responsabilidad de hacer el `wait()` si el proceso padre termina sin hacer `wait()`?
+
+Si un proceso padre termina sin hacer `wait()`, su proceso hijo queda huérfano y **es adoptado automáticamente por el proceso init**. Cuando ese hijo termina su ejecución, init realiza un `wait()` implícito para liberar sus recursos y evitar que se convierta en zombie.
+
+Nota: Esto solo ocurre si el padre muere antes de que el hijo haya terminado. Si el padre sigue vivo pero no hace `wait()`, el hijo sí se convierte en zombie al finalizar.
+
+Situaciones que pueden ocurrir:
+
+- **El padre muere**: init lo adopta → el hijo no queda zombie.
+- **El padre sigue vivo y no hace `wait()`**: el hijo queda zombie.
+- **El padre hace `wait()`**: el hijo es limpiado correctamente.
 
 #### 9. Kernel Level Threads
 
 ##### a. ¿Qué elementos del espacio de direcciones comparten los threads creados con `pthread_create()`?
+
+Los hilos creados con `pthread_create()` comparten código, datos y heap, pero cada hilo tiene su propio stack.
 
 ##### b. ¿Qué relaciones hay entre `getpid()` y `gettid()` en los KLT?
 
