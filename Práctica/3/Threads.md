@@ -166,19 +166,71 @@ Los hilos creados con `pthread_create()` comparten código, datos y heap, pero c
 
 ##### b. ¿Qué relaciones hay entre `getpid()` y `gettid()` en los KLT?
 
-##### c. ¿Por qué `pthread_join()` es importante en programas que usan múltiples hilos?¿Cuándo se liberan los recursos de un hilo zombie?
+Las funciones `getpid()` y `gettid()` **no se comportan exactamente igual** cuando las usamos en ULT vs KLT:
+
+- En programas con ULT:
+
+  - `getpid()` devuelve el mismo ID para todos los hilos del proceso.
+  - `gettid()` también devuelve el mismo ID para todos los hilos ULT, ya que el kernel no tiene idea de estos hilos, son gestionados por la aplicación.
+
+- En programas con KLT:
+  - `getpid()` devuelve el mismo ID para todos los hilos del proceso.
+  - `gettid()` devuelve un ID único para cada hilo kernel, permitiendo identificar individualmente cada KLT.
+
+##### c. ¿Por qué `pthread_join()` es importante en programas que usan múltiples hilos? ¿Cuándo se liberan los recursos de un hilo zombie?
+
+La función `pthread_join()` es importante en programas que usan múltiples hilos ya que realiza tres tareas fundamentales:
+
+- Espera a que un hilo termine y recoge su valor de retorno.
+- Libera los recursos del hilo (stack, estructuras del kernel).
+- Evita que el hilo quede en estado zombie (finalizado pero no recolectado).
+
+Los recursos de un hilo zombie se liberan cuando otro hilo llama a `pthread_join()` sobre él. Si no se hace, hay **fuga de recursos**.
 
 ##### d. ¿Qué pasaría si un hilo del proceso bloquea en `read()`? ¿Afecta a los demás hilos?
 
+Si un hilo del proceso se bloquea en un `read()`, los demás hilos no se verán afectados. Esto se debe a que cada hilo es gestionado por el kernel con su propio contexto de ejecución, de forma concurrente, o paralela si tenemos un multicore.
+
 ##### e. Describí qué ocurre a nivel de sistema operativo cuando se invoca `pthread_create()` (¿es syscall? ¿usa clone?).
+
+A nivel de SO, cuando se invoca `pthread_create()`, la cual es una función de espacio de usuario y **no una syscall**, ésta internamente invoca a la syscall `clone()` la cual puede recibir varios flags como:
+
+- **CLONE_VM**: Comparte el espacio de memoria (mismo proceso)
+- **CLONE_FS**: Comparte el sistema de archivos
+- **CLONE_FILES**: Comparte descriptores de archivo
+- **CLONE_SIGHAND**: Comparte manejadores de señales
+- **CLONE_THREAD**: Indica que es un hilo (no un proceso independiente)
+
+Esto permite que el nuevo hilo comparta recursos con el proceso padre (como memoria y archivos abiertos), pero tenga su propio stack y Thread ID (TID).
+
+Luego de esto, el kernel asigna un nuevo Thread Control Block (TCB) y lo gestiona como una entidad planificable independiente, aunque pertenezca al mismo proceso.
+
+Diferencia con `fork()`:
+
+- `fork()` usa `clone()` sin los flags anteriores, resultando en un **proceso hijo con memoria independiente** (COW).
+- `pthread_create()` (`vía clone()`) comparte memoria y recursos, creando un **hilo dentro del mismo proceso**.
 
 #### 10. User Level Threads
 
 ##### a. ¿Por qué los ULTs no se pueden ejecutar en paralelo sobre múltiples núcleos?
 
+Los ULTs no se pueden ejecutar en paralelo sobre múltiples núcleos porque el kernel no tiene conocimiento de su existencia: solo los gestiona la biblioteca de hilos en espacio de usuario. Por lo tanto, el scheduler del SO solo asigna CPU al proceso completo (un único KLT), sin distribuir los ULTs entre núcleos.
+
 ##### b. ¿Qué ventajas tiene el uso de ULTs respecto de los KLTs?
 
+Usar ULTs en vez de KLTs tiene varias ventajas:
+
+1. **Mayor eficiencia en la creación y gestión de hilos**: La creación, eliminación y cambio de contexto entre ULTs es mucho más rápida ya que no requiere intervención del kernel, evitando syscalls costosas.
+2. **Menor sobrecarga**: Los ULTs tienen menos sobrecarga ya que se gestionan completamente en espacio de usuario, sin necesidad de cambiar entre modo usuario y modo kernel.
+3. **Planificación personalizada**: Las aplicaciones pueden implementar sus propias políticas de planificación de hilos adaptadas a sus necesidades específicas, en lugar de depender de la política general del sistema operativo.
+4. **Mejor portabilidad**: Los ULTs pueden implementarse en cualquier sistema operativo, incluso en aquellos que no soportan nativamente hilos a nivel de kernel.
+5. **Control más preciso**: La aplicación tiene control absoluto sobre el comportamiento de los hilos, permitiendo implementaciones más específicas y optimizadas.
+6. **Escalabilidad mejorada**: Se pueden crear miles de ULTs sin impactar significativamente los recursos del sistema, mientras que los KLTs están más limitados por los recursos del kernel.
+7. **Menor impacto en bloqueos**: Si un ULT se bloquea, solo afecta a los hilos dentro del mismo proceso, mientras que con KLTs, podría afectar a la planificación global del sistema.
+
 ##### c. ¿Qué relaciones hay entre `getpid()`, `gettid()` y `pth_self()` (en GNU Pth)?
+
+
 
 ##### d. ¿Qué pasaría si un ULT realiza una syscall bloqueante como `read()`?
 
