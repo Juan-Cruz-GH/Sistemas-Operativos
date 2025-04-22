@@ -291,23 +291,108 @@ git clone https://gitlab.com/unlp-so/codigo-para-practicas.git
 
 ##### b. Ejecute cada programa individualmente, observe las diferencias y similitudes del PID y THREAD_ID en cada caso. Conteste en qué mecanismo de concurrencia las distintas tareas:
 
+- Ejecutando `./01-subprocess`:
+
+```
+Parent process: PID = 1102, THREAD_ID = 1102
+Child process: PID = 1103, THREAD_ID = 1103
+```
+
+- Ejecutando `./02-kl-thread`:
+
+```
+Parent process: PID = 1104, THREAD_ID = 1104
+Child process: PID = 1104, THREAD_ID = 1105
+```
+
+- Ejecutando `./03-ul-thread`:
+
+```
+Parent process: PID = 1114, THREAD_ID = 1114, PTH_ID = 94419127625968
+Child process: PID = 1114, THREAD_ID = 1114, PTH_ID = 94419127631584
+```
+
 ###### i. Comparten el mismo PID y THREAD_ID
+
+Las tareas tienen el mismo PID y mismo THREAD_ID en el programa **03-ul-thread**, ya que al usar User Level Threads el SO no tiene conocimiento de los ULTs.
 
 ###### ii. Comparten el mismo PID pero con diferente THREAD_ID
 
+Las tareas tienen el mismo PID pero con diferente THREAD_ID en el programa **02-kl_thread**, ya que al usar Kernel Level Threads el SO asigna un TID distinto a cada hilo del proceso, pero todos poseen el mismo PID ya que son todos hilos del proceso en cuestión.
+
 ###### iii. Tienen distinto PID
+
+Las tareas tienen distinto PID únicamente en el programa **01-subprocess**, ya que al hacer `fork()` se crea un nuevo proceso individual con su propio PID distinto al de su padre.
 
 ##### c. Ejecute cada programa usando strace (strace ./nombre_programa > /dev/null) y responda:
 
 ###### i. ¿En qué casos se invoca a la systemcall clone o clone3 y en cuál no? ¿Por qué?
 
+- Ejecutando `strace ./01-subprocess > /dev/null` se invoca a la systemcall **clone**:
+  - Esto se debe a que la instrucción `fork()` usada en este programa usa internamente a la systemcall clone para crear un nuevo proceso.
+
+```
+clone(child_stack=NULL, flags=CLONE_CHILD_CLEARTID | CLONE_CHILD_SETTID | SIGCHLD, child_tidptr=0x7f09895cea10) = 1177
+```
+
+- Ejecutando `strace ./02-kl-thread > /dev/null` se invoca a la systemcall **clone3**:
+  - Esto se debe a que los KLT, como los que se crean con pthreads, son gestionados por el kernel. Para crearlos, la biblioteca de hilos (como glibc) utiliza internamente la systemcall **clone** o **clone3**, que permite compartir el espacio de direcciones y otros recursos entre hilos.
+
+```
+clone3({flags=CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD | CLONE_SYSVSEM | CLONE_SETTLS | CLONE_PARENT_SETTID | CLONE_CHILD_CLEARTID, child_tid=0x7f80e31a990, parent_tid=0x7f80e312a990, exit_signal=0, stack=0x7f80e292a000, stack_size = 0x7fff80, tls=0x7f80e312a6c0} => {parent_tid=[1191]}, 88) = 1191
+```
+
+- Ejecutando `strace ./03-ul-thread > /dev/null` **NO se invoca a la systemcall clone ni clone3**:
+  - Esto se debe a que los ULT son manejados exclusivamente en espacio de usuario por la librería de hilos (como Pth). No se usan systemcalls.
+
 ###### ii. Observe los flags que se pasan al invocar a clone o clone3 y verifique en qué caso se usan los flags CLONE_THREAD y CLONE_VM.
+
+- Tanto la flag CLONE_THREAD como la flag CLONE_VM se usan al invocar **clone3** en el contexto de los KLT.
 
 ###### iii. Investigue qué significan los flags CLONE_THREAD y CLONE_VM usando la manpage de clone y explique cómo se relacionan con las diferencias entre procesos e hilos.
 
+- **CLONE_THREAD** indica que el nuevo hilo pertenece al mismo grupo de hilos que el hilo principal (es decir, todos los hilos comparten PID de grupo).
+- **CLONE_VM** indica que el nuevo hilo comparte el mismo espacio de direcciones que el hilo principal.
+
 ###### iv. `printf()` eventualmente invoca la syscall write (con primer argumento 1, indicando que el file descriptor donde se escribirá el texto es STDOUT). Vea la salida de strace y verifique qué invocaciones a write(1, ...) ocurren en cada caso.
 
+- Ejecutando `strace ./01-subprocess > /dev/null`:
+
+```
+write(1, "Parent process: PID = 1277, THRE"..., 45) = 45
+```
+
+- Ejecutando `strace ./02-kl-thread > /dev/null`:
+
+```
+write(1, "Parent process: PID = 1290, THRE"..., 88) = 88
+```
+
+- Ejecutando `strace ./03-ul-thread > /dev/null`:
+
+```
+write(1, "Parent process: PID = 1298, THRE"..., 138) = 138
+```
+
 ###### v. Pruebe invocar de nuevo strace con la opción -f y vea qué sucede respecto a las invocaciones a write(1, …). Investigue qué es esa opción en la manpage de strace. ¿Por qué en el caso del ULT se puede ver la invocación a write(1, …) por parte del thread hijo aún sin usar -f?
+
+- Ejecutando `strace -f ./01-subprocess > /dev/null`:
+
+```
+
+```
+
+- Ejecutando `strace -f ./02-kl-thread > /dev/null`:
+
+```
+
+```
+
+- Ejecutando `strace -f ./03-ul-thread > /dev/null`:
+
+```
+
+```
 
 #### 4. Resuelva y responda utilizando el contenido del directorio practica3/02-memory:
 
