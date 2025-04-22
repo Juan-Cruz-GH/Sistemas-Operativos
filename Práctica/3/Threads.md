@@ -222,25 +222,53 @@ Usar ULTs en vez de KLTs tiene varias ventajas:
 
 1. **Mayor eficiencia en la creación y gestión de hilos**: La creación, eliminación y cambio de contexto entre ULTs es mucho más rápida ya que no requiere intervención del kernel, evitando syscalls costosas.
 2. **Menor sobrecarga**: Los ULTs tienen menos sobrecarga ya que se gestionan completamente en espacio de usuario, sin necesidad de cambiar entre modo usuario y modo kernel.
-3. **Planificación personalizada**: Las aplicaciones pueden implementar sus propias políticas de planificación de hilos adaptadas a sus necesidades específicas, en lugar de depender de la política general del sistema operativo.
-4. **Mejor portabilidad**: Los ULTs pueden implementarse en cualquier sistema operativo, incluso en aquellos que no soportan nativamente hilos a nivel de kernel.
+3. **Planificación personalizada**: Las aplicaciones pueden implementar sus propias políticas de planificación de hilos adaptadas a sus necesidades específicas, en lugar de depender de la política general del SO.
+4. **Mejor portabilidad**: Los ULTs pueden implementarse en cualquier SO, incluso en aquellos que no soportan nativamente hilos a nivel de kernel.
 5. **Control más preciso**: La aplicación tiene control absoluto sobre el comportamiento de los hilos, permitiendo implementaciones más específicas y optimizadas.
 6. **Escalabilidad mejorada**: Se pueden crear miles de ULTs sin impactar significativamente los recursos del sistema, mientras que los KLTs están más limitados por los recursos del kernel.
 7. **Menor impacto en bloqueos**: Si un ULT se bloquea, solo afecta a los hilos dentro del mismo proceso, mientras que con KLTs, podría afectar a la planificación global del sistema.
 
 ##### c. ¿Qué relaciones hay entre `getpid()`, `gettid()` y `pth_self()` (en GNU Pth)?
 
-
+- `getpid()` retorna el PID del proceso actual. Este valor es compartido por todos los hilos del proceso, ya sean ULT o KLT.
+- `gettid()` retorna el TID del hilo actual (hilo KLT).
+- `pth_self()` retorna el TID del hilo actual en la librería Pth (hilo ULT).
 
 ##### d. ¿Qué pasaría si un ULT realiza una syscall bloqueante como `read()`?
 
+Si un ULT realiza una syscall bloqueante como `read()`, todos los hilos ULT de ese proceso se bloquean hasta que termine la syscall.
+
 ##### e. ¿Qué tipos de scheduling pueden tener los ULTs? ¿Cuál es el más común?
+
+En los ULT, es la biblioteca de hilos la que maneja el scheduling de éstos. Existen varios tipos de scheduling que este tipo de bibliotecas usan:
+
+- **Cooperativo (el más común)**:
+  - Non-preemptive (no apropiativo).
+  - Cada hilo cede voluntariamente el control.
+  - El scheduler no puede interrumpir a un hilo de forma arbitraria.
+  - Puede provocar bloqueos.
+- **Round-robin**:
+  - Preemptive (apropiativo).
+  - Los hilos se programan en órdenes circulares, donde cada uno obtiene la CPU por un determinado tiempo (quantum).
+  - No se suele usar.
 
 #### 11. Global Interpreter Lock
 
 ##### a. ¿Qué es el GIL (Global Interpreter Lock)? ¿Qué impacto tiene sobre programas multi-thread en Python y Ruby?
 
+El GIL (Global Interpreter Lock) es un mecanismo de exclusión mutua (mutex) presente en implementaciones como CPython (Python) y MRI (Matz's Ruby Interpreter), que permite que **solo un hilo ejecute código del intérprete a la vez, incluso en programas multithread**.
+
+Esto significa que, aunque un programa esté compuesto por múltiples hilos, solo uno de ellos puede ejecutar bytecode del lenguaje a la vez.
+
+El impacto del GIL es especialmente notable en programas CPU-bound, ya que impide el aprovechamiento real de múltiples núcleos del procesador. En estos casos, el GIL crea un cuello de botella y limita la escalabilidad.
+
+Para programas I/O-bound en cambio, el GIL tiene menos impacto, porque los hilos pueden liberar el GIL mientras esperan a que terminen las operaciones de entrada/salida que realizaron.
+
+NOTA: El GIL es una limitación de los intérpretes más comunes de estos lenguajes, no de los lenguajes en sí. Tanto Ruby como Python poseen intérpretes alternativos que no tienen GIL.
+
 ##### b. ¿Por qué en CPython o MRI se recomienda usar procesos en vez de hilos para tareas intensivas en CPU?
+
+En CPython (intérprete principal de Python) y en MRI (intérprete principal de Ruby), se recomienda usar procesos en vez de hilos para tareas intensivas en CPU debido al bottleneck que presenta el GIL, impidiendo la ejecución paralela real de múltiples hilos. Los procesos, en cambio, no comparten GIL (cada uno tiene el suyo, debido a que cada proceso tiene su propio intérprete), lo que permite que el SO los distribuya entre varios núcleos y se obtenga paralelismo verdadero y por ende mejor rendimiento.
 
 ### Práctica guiada
 
@@ -248,8 +276,7 @@ Usar ULTs en vez de KLTs tiene varias ventajas:
 
 ```
 apt update
-apt install build-essential libpth-dev python3 python3-venv strace git
-htop podman
+apt install build-essential strace git libpth-dev python3 python3-venv htop podman
 ```
 
 #### 2. Clone el repositorio con el código a usar en la práctica:
