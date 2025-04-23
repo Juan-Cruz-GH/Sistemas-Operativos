@@ -460,41 +460,108 @@ Parent process: number = 84
 
 ##### b. Ejecute los distintos ejemplos con make (usar make help para ver cómo) y observe cómo aparecen los resultados, cuánto tarda cada thread y cuanto tarda el programa completo en finalizar.
 
-- Ejecutando `make run_klt`:
+- Ejecutando `make run_klt` (ejecuta el programa **klt.c**):
 
 ```
-
+Starting the program.
+[Thread 140025612744384] Doing some work...
+[Thread 140025604351680] Doing some work...
+[Thread 140025595958976] Doing some work...
+[Thread 140025621137088] Doing some work...
+[Thread 140025587566272] Doing some work...
+2500000th prime is 41161739
+[Thread 140025587566272] Done with work in 33.902158 seconds.
+2500000th prime is 41161739
+[Thread 140025604351680] Done with work in 34.659738 seconds.
+2500000th prime is 41161739
+[Thread 140025612744384] Done with work in 35.222059 seconds.
+2500000th prime is 41161739
+[Thread 140025595958976] Done with work in 35.286898 seconds.
+2500000th prime is 41161739
+[Thread 140025621137088] Done with work in 35.290128 seconds.
+All threads are done in 35.290722 seconds
 ```
 
-- Ejecutando `make run_ult`:
+- Ejecutando `make run_ult` (ejecuta el programa **ult.c**):
 
 ```
-
+Starting the program.
+[Thread 94610394391264] Doing some work...
+2500000th prime is 41161739
+[Thread 94610394391264] Done with work in 25.985214 seconds.
+[Thread 94610394458320] Doing some work...
+2500000th prime is 41161739
+[Thread 94610394458320] Done with work in 25.975222 seconds.
+[Thread 94610394525376] Doing some work...
+2500000th prime is 41161739
+[Thread 94610394525376] Done with work in 26.005179 seconds.
+[Thread 94610394592432] Doing some work...
+2500000th prime is 41161739
+[Thread 94610394592432] Done with work in 25.978048 seconds.
+[Thread 94610394659488] Doing some work...
+2500000th prime is 41161739
+[Thread 94610394659488] Done with work in 25.981859 seconds.
+All threads are done in 130.000000 seconds
 ```
 
-- Ejecutando `make run_klt_py`:
+- Ejecutando `make run_klt_py` (ejecuta el programa **klt.py**):
 
 ```
-
+Starting the program.
+[thread_id=140221242930880] Doing some work...
+[thread_id=140221234538176] Doing some work...
+[thread_id=140221152753344] Doing some work...
+[thread_id=140221144360640] Doing some work...
+[thread_id=140221135967936] Doing some work...
+500000th prime is 7368787
+[thread_id=140221144360640] Done with work in 62.13228464126587 seconds.
+500000th prime is 7368787
+[thread_id=140221152753344] Done with work in 124.06925129890442 seconds.
+500000th prime is 7368787
+[thread_id=140221242930880] Done with work in 196.06028866767883 seconds.
+500000th prime is 7368787
+[thread_id=140221135967936] Done with work in 195.98816108703613 seconds.
+500000th prime is 7368787
+[thread_id=140221234538176] Done with work in 196.0209150314331 seconds.
+All threads are done in 196.099844455719 seconds
 ```
 
-- Ejecutando `make run_ult_py`:
+- Ejecutando `make run_ult_py` (ejecuta el programa **ult.py**):
 
 ```
-
-```
-
-- Ejecutando `make run_klt_py_nogil`:
-
-```
-
+Starting the program.
+[greenlet_id=140599440456928] Doing some work...
+500000th prime is 7368787
+[greenlet_id=140599440456928] Done with work in 40.6384699344635 seconds.
+[greenlet_id=140599440456448] Doing some work...
+500000th prime is 7368787
+[greenlet_id=140599440456448] Done with work in 40.53185224533081 seconds.
+[greenlet_id=140599440456288] Doing some work...
+500000th prime is 7368787
+[greenlet_id=140599440456288] Done with work in 40.50132775306702 seconds.
+[greenlet_id=140599439074432] Doing some work...
+500000th prime is 7368787
+[greenlet_id=140599439074432] Done with work in 40.49550819396973 seconds.
+[greenlet_id=140599439074592] Doing some work...
+500000th prime is 7368787
+[greenlet_id=140599439074592] Done with work in 40.472925424575806 seconds.
+All greenlets are done in 202.65105485916138 seconds
 ```
 
 ##### c. ¿Cuántos threads se crean en cada caso?
 
+- En el caso de **klt.c**, se crean 5 threads.
+- En el caso de **ult.c**, se crean 5 threads.
+- En el caso de **klt.py**, se crean 5 threads.
+- En el caso de **ult.py**, se crean 5 threads.
+
 ##### d. ¿Cómo se comparan los tiempos de ejecución de los programas escritos en C (ult y klt)?
 
+El programa **klt.c** tardó en total 35.290722 segundos, mientras que **ult.c** tardó en total 130.000000 segundos, casi el cuádruple. Esto tiene sentido ya que los KLT hacen uso efectivo del paralelismo al ejecutar a los hilos en múltiples cores físicos al mismo tiempo, mientras que los ULT no son paralelos, si no concurrentes, en un solo core.
+
 ##### e. ¿Cómo se comparan los tiempos de ejecución de los programas escritos en Python (ult.py y klt.py)?
+
+El programa **klt.py** tardó en total 196.099844455719 segundos, mientras que **ult.py** tardó en total 202.65105485916138 segundos, casi lo mismo. Esto tiene sentido ya que python está fuertemente limitado por el GIL, ya sea que usemos ULT o KLT: no tenemos ejecución paralela real ni aprovechamiento de varios cores.
 
 ##### f. Modifique la cantidad de threads en los scripts Python con la variable NUM_THREADS para que en ambos casos se creen solamente 2 threads, vuelva a ejecutar y comparar los tiempos. ¿Nota algún cambio? ¿A qué se debe?
 
