@@ -376,23 +376,29 @@ write(1, "Parent process: PID = 1298, THRE"..., 138) = 138
 
 ###### v. Pruebe invocar de nuevo strace con la opción -f y vea qué sucede respecto a las invocaciones a write(1, …). Investigue qué es esa opción en la manpage de strace. ¿Por qué en el caso del ULT se puede ver la invocación a write(1, …) por parte del thread hijo aún sin usar -f?
 
+Por defecto, **strace** solo sigue las systemcalls del proceso principal del programa, y no de sus procesos hijos o de sus hilos. Si usamos la opción -f, strace trackea a todos los procesos hijos del programa, y a todos sus hilos.
+
 - Ejecutando `strace -f ./01-subprocess > /dev/null`:
 
 ```
+[pid  1459] write(1, "Parent process: PID = 1458, THRE"..., 89) = 89
 
+write(1, "Parent process: PID = 1458, THRE"..., 45) = 45
 ```
 
 - Ejecutando `strace -f ./02-kl-thread > /dev/null`:
 
 ```
-
+write(1, "Parent process: PID = 1506, THRE"..., 88) = 88
 ```
 
 - Ejecutando `strace -f ./03-ul-thread > /dev/null`:
 
 ```
-
+write(1, "Parent process: PID = 1548, THRE"..., 138) = 138
 ```
+
+En el caso del ULT se puede ver la invocación a `write(1, …)` por parte del thread hijo aún sin usar -f porque el "hilo" del ULT no es un hilo real del sistema. No se usa `clone()` ni `fork()`, por lo tanto el kernel no ve más de un proceso. Desde el punto de vista de strace, todo pasa en un solo PID, y por eso se ven todas las llamadas.
 
 #### 4. Resuelva y responda utilizando el contenido del directorio practica3/02-memory:
 
@@ -400,13 +406,89 @@ write(1, "Parent process: PID = 1298, THRE"..., 138) = 138
 
 ##### b. Ejecute los 3 programas.
 
+- Ejecutando `./01-subprocess`:
+
+```
+Parent process: PID = 1891, THREAD_ID = 1891
+Parent process: number = 42
+Child process: PID = 1892, THREAD_ID = 1892
+Child process: number = 84
+Parent process: number = 42
+```
+
+- Ejecutando `./02-kl-thread`:
+
+```
+Parent process: PID = 1911, THREAD_ID = 1911
+Parent process: number = 42
+Child thread: PID = 1911, THREAD_ID = 1912
+Child process: number = 84
+Parent process: number = 84
+```
+
+- Ejecutando `./03-ul-thread`:
+
+```
+Parent process: PID = 1949, THREAD_ID = 1949, PTH_ID = 94409932740848
+Parent process: number = 42
+Child thread: PID = 1949, THREAD_ID = 1949, PTH_ID = 94409932743392
+Child thread: number = 84
+Parent process: number = 84
+```
+
 ##### c. Observe qué pasa con la modificación a la variable number en cada caso. ¿Por qué suceden cosas distintas en cada caso?
+
+- **En 01-subprocess**:
+  - El proceso principal crea a un proceso hijo y espera a que éste termine.
+  - El proceso hijo multiplica por 2 una variable global del programa y la actualiza.
+  - El proceso hijo imprime el nuevo valor.
+  - Ya que el proceso hijo ahora terminó, el proceso original deja de esperar e imprime el valor del número también.
+  - Explicación de por qué el proceso padre no ve la modificación que hizo el hijo:
+    - `fork()` crea un nuevo proceso hijo que es una copia del proceso padre, incluyendo su espacio de direcciones (código, datos, variables globales, etc.).
+    - Debido a la técnica de Copy-On-Write, el SO no copia inmediatamente toda la memoria, sino que ambos procesos comparten la misma memoria físicamente **hasta que uno de ellos la modifica**.
+    - Cuando el proceso hijo modifica la variable global number, se genera una copia privada de esa página de memoria, y el cambio solo es visible para el hijo.
+    - El padre sigue con su versión original de la variable number, que permanece en 42.
+- **En 02-kl-thread**:
+  - En este caso, cuando el hilo hijo modifica la variable global, el hilo padre ve esta modificación también.
+  - Esto se debe a que cuando usamos Kernel Level Threads, los diferentes hilos del proceso todos comparten el mismo espacio de direcciones.
+- **En 03-ul-thread**:
+  - Ocurre lo mismo que en el programa anterior, todos los hilos ULT comparten el espacio de direcciones, y por ende la modificación que realiza el hilo hijo es visible para el hilo padre.
 
 #### 5. El directorio practica3/03-cpu-bound contiene programas en C y en Python que ejecutan una tarea CPU-Bound (calcular el enésimo número primo).
 
 ##### a. Ejecute htop en una terminal separada para monitorear el uso de CPU en los siguientes incisos.
 
 ##### b. Ejecute los distintos ejemplos con make (usar make help para ver cómo) y observe cómo aparecen los resultados, cuánto tarda cada thread y cuanto tarda el programa completo en finalizar.
+
+- Ejecutando `make run_klt`:
+
+```
+
+```
+
+- Ejecutando `make run_ult`:
+
+```
+
+```
+
+- Ejecutando `make run_klt_py`:
+
+```
+
+```
+
+- Ejecutando `make run_ult_py`:
+
+```
+
+```
+
+- Ejecutando `make run_klt_py_nogil`:
+
+```
+
+```
 
 ##### c. ¿Cuántos threads se crean en cada caso?
 
