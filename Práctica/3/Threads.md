@@ -565,7 +565,53 @@ El programa **klt.py** tardó en total 196.099844455719 segundos, mientras que *
 
 ##### f. Modifique la cantidad de threads en los scripts Python con la variable NUM_THREADS para que en ambos casos se creen solamente 2 threads, vuelva a ejecutar y comparar los tiempos. ¿Nota algún cambio? ¿A qué se debe?
 
+- Modificación en **klt.py** y **ult.py**:
+
+```
+...
+# Number of threads to spawn
+NUM_THREADS = 2
+...
+```
+
+- Ejecutando `make run_klt_py` (ejecuta el programa **klt.py**):
+
+```
+Starting the program.
+[thread_id=139661963949760] Doing some work...
+[thread_id=139661955557056] Doing some work...
+500000th prime is 7368787
+[thread_id=139661955557056] Done with work in 86.90708351135254 seconds.
+500000th prime is 7368787
+[thread_id=139661963949760] Done with work in 87.05767941474915 seconds.
+All threads are done in 87.05851626396179 seconds
+```
+
+- Ejecutando `make run_ult_py` (ejecuta el programa **ult.py**):
+
+```
+Starting the program.
+[greenlet_id=140607758207712] Doing some work...
+500000th prime is 7368787
+[greenlet_id=140607758207712] Done with work in 41.86504650115967 seconds.
+[greenlet_id=140607755386560] Doing some work...
+500000th prime is 7368787
+[greenlet_id=140607755386560] Done with work in 41.85257625579834 seconds.
+All greenlets are done in 83.72936034202576 seconds
+```
+
+Podemos ver que usar menos hilos (2 vs 5 antes) nos resulta en un tiempo de ejecución mucho mejor:
+
+| Programa | Tiempo de ejecución (5 hilos) | Tiempo de ejecución (2 hilos) |
+| -------- | ----------------------------- | ----------------------------- |
+| klt.py   | 196.099844455719              | 87.05851626396179             |
+| ult.py   | 202.65105485916138            | 83.72936034202576             |
+
+Esto se debe a que aumentar la cantidad de hilos, contrario a lo que uno pensaría, solo empeora el problema en python debido al GIL. Lo que termina ocurriendo es que se añade más y más overhead por context switch entre hilos que no están haciendo nada, ya que la ejecución no es paralela.
+
 ##### g. ¿Qué conclusión puede sacar respecto a los ULT en tareas CPU-Bound?
+
+La conclusión que saco es que los ULT no son una buena opción para tareas CPU-Bound, ya que éstas tienen muy pocos (o nulos) tiempos muertos, por ende idealmente necesitan paralelismo, no solo concurrencia como la que ofrecen los ULT.
 
 #### 6. El directorio practica3/04-io-bound contiene programas en C y en Python que ejecutan una tarea que simula ser IO-Bound (tiene una llamada a sleep lo que permite interleaving de forma similar al uso de IO).
 
@@ -573,11 +619,87 @@ El programa **klt.py** tardó en total 196.099844455719 segundos, mientras que *
 
 ##### b. Ejecute los distintos ejemplos con make (usar make help para ver cómo) y observe cómo aparecen los resultados, cuánto tarda cada thread y cuanto tarda el programa completo en finalizar.
 
+- Ejecutando `make run_klt` (ejecuta el programa **klt.c**):
+
+```
+Starting the program.
+[Thread 139742272865984] Doing some work...
+[Thread 139742264473280] Doing some work...
+[Thread 139742256080576] Doing some work...
+[Thread 139742239295168] Doing some work...
+[Thread 139742247687872] Doing some work...
+[Thread 139742264473280] Done with work in 10.220203 seconds.
+[Thread 139742239295168] Done with work in 10.228879 seconds.
+[Thread 139742247687872] Done with work in 10.228898 seconds.
+[Thread 139742256080576] Done with work in 10.427020 seconds.
+[Thread 139742272865984] Done with work in 10.466495 seconds.
+All threads are done in 10.467345 seconds
+```
+
+- Ejecutando `make run_ult` (ejecuta el programa **ult.c**):
+
+```
+Starting the program.
+[Thread 93974604321504] Doing some work...
+[Thread 93974604388560] Doing some work...
+[Thread 93974604455616] Doing some work...
+[Thread 93974604522672] Doing some work...
+[Thread 93974604589728] Doing some work...
+[Thread 93974604321504] Done with work in 10.315886 seconds.
+[Thread 93974604388560] Done with work in 10.315916 seconds.
+[Thread 93974604455616] Done with work in 10.315914 seconds.
+[Thread 93974604522672] Done with work in 10.315910 seconds.
+[Thread 93974604589728] Done with work in 10.315905 seconds.
+All threads are done in 10.315982 seconds
+```
+
+- Ejecutando `make run_klt_py` (ejecuta el programa **klt.py**):
+
+```
+Starting the program.
+[thread_id=139716593710784] Doing some work...
+[thread_id=139716585318080] Doing some work...
+[thread_id=139716576925376] Doing some work...
+[thread_id=139716359878336] Doing some work...
+[thread_id=139716351485632] Doing some work...
+[thread_id=139716576925376] Done with work.
+[thread_id=139716359878336] Done with work.
+[thread_id=139716585318080] Done with work.
+[thread_id=139716593710784] Done with work.
+[thread_id=139716351485632] Done with work.
+All threads are done in 10.333065271377563 seconds
+```
+
+- Ejecutando `make run_ult_py` (ejecuta el programa **ult.py**):
+
+```
+Starting the program.
+[greenlet_id=140150392325280] Doing some work...
+[greenlet_id=140150391616224] Doing some work...
+[greenlet_id=140150385637504] Doing some work...
+[greenlet_id=140150384108512] Doing some work...
+[greenlet_id=140150384108672] Doing some work...
+[greenlet_id=140150392325280] Done with work.
+[greenlet_id=140150391616224] Done with work.
+[greenlet_id=140150385637504] Done with work.
+[greenlet_id=140150384108512] Done with work.
+[greenlet_id=140150384108672] Done with work.
+All greenlets are done in 10.016793966293335 seconds
+```
+
 ##### c. ¿Cómo se comparan los tiempos de ejecución de los programas escritos en C (ult y klt)?
+
+Los tiempos de ejecución de **klt.c** y **ult.c** son casi iguales, con el de **ult.c** teniendo una leve ventaja.
 
 ##### d. ¿Cómo se comparan los tiempos de ejecución de los programas escritos en Python (ult.py y klt.py)?
 
+Los tiempos de ejecución de **klt.py** y **ult.py** son también muy parecidos, con el de **ult.py** teniendo una leve ventaja.
+
 ##### e. ¿Qué conclusión puede sacar respecto a los ULT en tareas IO-Bound?
+
+Concluyo que los ULT son óptimos de usar para tareas IO-Bound, pero no CPU-Bound. Esto se debe principalmente a que los ULT pueden hacer context switch muy rápidamente y sin intervención del kernel, lo cual minimiza el overhead.
+
+Por ende, a la hora de elegir si usar ULT o KLT, debemos analizar nuestro programa y ver qué tan IO-Bound y qué tan CPU-Bound es.
 
 #### 7. Diríjase nuevamente en la terminal a practica3/03-cpu-bound y modifique klt.py de forma que vuelva a crear 5 threads.
 
@@ -585,6 +707,12 @@ El programa **klt.py** tardó en total 196.099844455719 segundos, mientras que *
 
 ##### b. Ejecute una versión de Python que tenga el GIL deshabilitado usando: `make run_klt_py_nogil` (esta operación tarda la primera vez ya que necesita descargar un container con una versión de Python compilada explícitamente con el GIL deshabilitado).
 
+...
+
 ##### c. ¿Cómo se comparan los tiempos de ejecución de klt.py usando la versión normal de Python en contraste con la versión sin GIL?
 
+...
+
 ##### d. ¿Qué conclusión puede sacar respecto a los KLT con el GIL de Python en tareas CPU-Bound?
+
+...
