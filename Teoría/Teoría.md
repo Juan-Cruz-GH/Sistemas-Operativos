@@ -748,10 +748,191 @@ Podemos virtualizar por muchas razones:
 
 <h1 align="center">Clase 6 - 23 de abril, 2025</h1>
 
-##
+## CGroups y Namespaces
+
+### Chroot
+
+- Forma de aislar procesos del resto del sistema.
+- Cambia el directorio raíz aparente de un proceso y todos sus hijos.
+- No se puede acceder a archivos y comandos fuera de ese directorio.
+- En otras palabras: el proceso "queda encerrado" en el nuevo directorio, y no puede ver ni acceder a archivos fuera de él. Es como si, para ese proceso, el directorio que se le indicó fuera todo el sistema.
+- El nuevo directorio raíz es llamado "jail chroot".
+
+### Control Groups
+
+- Característica del kernel que permite agrupar procesos y gestionar sus recursos de forma jerárquica.
+- Sirven para limitar, priorizar, aislar y monitorizar el uso de recursos del sistema (CPU, memoria, E/S de disco, red, etc.) entre grupos de procesos.
+- Empezó a ser desarrollado en 2006 en Google bajo el nombre "process containers".
+- Está disponible desde la versión 2.6.24 del kernel.
+- Es **invisible para los procesos**.
+- Posee 12 subsistemas
+- Permiten un control de grano fino en:
+  - Limitación de recursos:
+    - Los grupos no pueden excederse en el uso de un recurso (tiempo de CPU, cantidad de cores, cantidad de memoria, etc).
+  - Alocación.
+  - Priorización:
+    - Un grupo puede obtener prioridad en el uso de un
+  - Denegación.
+  - Monitoreo de los recursos del sistema (accounting):
+    - Permite medir el uso de determinados recursos por parte de un grupo y obtener estadísticas y monitoreo.
+  - Control:
+    - Permite congelar y reiniciar un grupo de procesos.
+
+#### Versiones
+
+- Cgroups posee dos versiones principales, la v1 y la v2.
+- Ambos controladores pueden ser montados en el mismo sistema.
+- Una jerarquía de un controlador no puede estar en ambos cgroups simultáneamente.
+
+##### v1
+
+- **Grupos (cgroups)**: Contenedores de procesos que comparten las mismas limitaciones de recursos.
+- **Jerarquía**: Los cgroups se organizan en una estructura de árbol donde cada grupo puede tener subgrupos.
+- **Subsistemas**: Son módulos que proporcionan funcionalidades específicas de control de recursos (CPU, memoria, E/S, etc.).
+  - También se los llama controllers o resource controllers.
+  - Cada subsistema representa un único recurso: tiempo de CPU, memoria, etc.
+- Funcionamiento:
+  - Montaje: Los cgroups v1 se acceden a través de un sistema de archivos virtual, montado típicamente en `/sys/fs/cgroup`.
+  - Creación de grupos: Se crean directorios dentro de la jerarquía para representar nuevos grupos.
+  - Asignación de procesos: Se escriben los PIDs de los procesos en el archivo `tasks` o `cgroup.procs` del grupo.
+  - Configuración de límites: Se establecen parámetros escribiendo en los archivos de control del grupo.
+- Limitaciones:
+  - Solo permite una jerarquía activa por subsistema.
+  - La administración de recursos puede ser compleja.
+  - Algunas funcionalidades están divididas entre múltiples subsistemas.
+- Se usa `cgcreate` o `mkdir` dentro de la estructura para crear un nuevo cgroup.
+
+##### v2
+
+- Simplifica y unifica la administración de recursos, resolviendo varias limitaciones de la versión 1.
+- Mejoras:
+  - Jerarquía unificada: Solo existe una jerarquía que maneja todos los recursos (a diferencia de v1 con múltiples jerarquías independientes).
+  - Diseño más coherente: Elimina inconsistencias y solapamientos entre subsistemas.
+  - Nuevas características: Mejor soporte para contenedores, presión de recursos, y más.
+- La jerarquía se monta en `/sys/fs/cgroup/` y posee a todos los controllers (CPU, memoria, etc).
+- Cada cgroup posee los siguientes archivos:
+  - cgroup.procs: Lista de procesos en el grupo.
+  - cgroup.controllers: Lista de controladores disponibles.
+  - cgroup.subtree_control: Controladores activados para subgrupos.
+  - cgroup.events: Notificaciones de eventos.
+    - Populated: si es 1, este cgroup o alguno de sus descendientes tiene procesos miembros.
+    - Frozen: si es 1, el grupo está congelado y todos los procesos dentro de él pausan su ejecución.
+    - Empty: Permite notificar cuando un cgroup está vacío.
+- Se usa `mkdir` y `rmdir` para crear y eliminar cgroups.
+
+### Namespace Isolation
+
+- Técnica que separa y aísla ciertos recursos del sistema operativo para que diferentes procesos crean que tienen su propio entorno independiente.
+- Permite abstraer un recurso global del sistema para que los procesos dentro de ese namespace crean que tienen su propia instancia aislada de ese recurso global.
+- Limita lo que un proceso puede ver y por ende lo que puede usar.
+- Las modificaciones a un recurso particular quedan contenidas dentro del namespace.
+- Un proceso solo puede estar en un namespace de un tipo a la vez.
+- Un namespace es automáticamente eliminado cuando el último proceso en él termina o lo abandona.
+- Un proceso puede usar ninguno/algunos/todos de los namespaces de su padre.
+- Existen varios tipos de namespaces, cada uno aislando un recurso diferente:
+  - PID namespace: aísla los PIDs (cada grupo de procesos puede tener su propio init PID 1).
+  - Mount namespace: aísla los puntos de montaje del sistema de archivos.
+  - Network namespace: aísla interfaces de red, direcciones IP, tablas de rutas, etc.
+  - UTS namespace: permite a un proceso tener su propio nombre de host y nombre de dominio.
+  - IPC namespace: aísla mecanismos de comunicación entre procesos (como colas de mensajes o memoria compartida).
+  - User namespace: permite que un proceso tenga diferentes IDs de usuario y grupo, incluso ejecutarse como root dentro de su propio namespace pero no fuera de él.
+  - Cgroup namespace: aísla la vista de los control groups (cgroups).
+- La función `unshare()` agrega al proceso actual a un nuevo namespace. Crea el namespace y hace miembro de él al proceso llamador.
+- La función `setns()` agrega al proceso actual a un namespace existente. Desasocia al proceso llamante de una instancia de un tipo de namespace y lo reasocia con otra instancia del mismo tipo de namespace.
+- Cada proceso tiene un subdirectorio que contiene todos los nombres de los namespaces a los que está asociado: `/proc/[pid]/ns`.
+- Un proceso hijo hereda todos los namespaces de su proceso padre.
+
+## Contenedores
+
+### Breve historia
+
+- 1979: UNIX v7. Implementa la system call chroot.
+- 2000:
+  - FreeBSD Jail.
+  - Extiende el chroot: dirección IP, hostname, usuarios y procesos propios.
+- 2004: Solaris Zones. Pueden contener diferentes binarios, toolkits e, inclusive diferente OS.
+- 2008: Linux Containers (LXC).
+- 2013: Docker entra en escena.
+- 2014:
+  - Se anuncia el proyecto Kubernetes.
+  - Se libera Docker 1.0.
+- 2015:
+  - Se crea la Open Container Initiative.
+  - Se lanza Kubernetes 1.0.
+- 2018: Google Kubernetes Engine se vuelve disponible.
+- 2019: RedHat lanza la versión 1.0 de Podman.
+
+### Concepto
+
+- Tecnología liviana de virtualización a nivel SO que permite ejecutar varios sistemas aislados (conjuntos de procesos) en un único host.
+- La virtualización tradicional (como las VMs) emula hardware completo y requiere levantar un SO entero para cada instancia.
+- En cambio, los contenedores **comparten el mismo kernel** del sistema operativo anfitrión.
+- Esto los hace mucho más livianos y rápidos para iniciar, consumir menos recursos y ser más fáciles de escalar.
+- No es necesario un software de virtualización tipo hypervisor.
+- Son procesos normales del SO.
+- No es posible ejecutar instancias de SO con kernel diferente al SO base (por ej. Windows sobre Linux).
+- Los más populares son Podman y Docker.
+- Usualmente, cada contenedor provee un único servicio comúnmente denominado **microservicio**.
+- Visión:
+  - Desde el lado del nodo host, un contenedor es un **proceso** (o conjunto de procesos) en ejecución.
+  - En el nodo host se ven los procesos de todos los contenedores. Esto no es posible a la inversa ni entre distintos contenedores.
+
+### Características clave
+
+- **Autocontenidos**:
+  - Tienen todo lo que necesitan para funcionar.
+  - Un contenedor contiene un código específico y todas las librerías y dependencias necesarias para ejecutarse.
+  - Imágenes.
+- **Aislados**:
+  - Ejecutan de manera aislada en modo usuario usando un kernel compartido.
+  - Mínima influencia en el nodo y en otros contenedores.
+- **Independientes**:
+  - Administrar a un contenedor no afecta a ningun otro contenedor.
+- **Portables**:
+  - Están desacoplados del entorno donde se ejecutan.
+  - Pueden ejecutarse de igual manera en diferentes entornos.
+
+### Tipos de contenedores
+
+- De SO:
+  - Ejecutan un SO completo (excepto el kernel).
+  - LXC, BSD Jails, Solaris Zone, etc.
+- De aplicaciones:
+  - Empaquetan una aplicación o proceso.
+  - Docker, Podman, etc.
+
+### Relación con Namespaces y Cgroups
+
+- Un contenedor se basa en estos dos conceptos:
+  - **Namespaces**:
+    - Proporcionan aislamiento de recursos.
+    - Cada contenedor tiene su propio namespace para procesos (PID), sistema de archivos (mount), red (network), usuarios (user), etc.
+    - Así, los procesos dentro de un contenedor no ven ni interactúan con los de otros contenedores o del host, asegurando el aislamiento.
+  - **Control Groups (cgroups)**:
+    - Controlan cuánto CPU, memoria, I/O de disco y otros recursos puede usar un contenedor, evitando que uno monopolice los recursos del sistema.
 
 ---
 
 <h1 align="center">Clase 7 - 30 de abril, 2025</h1>
 
 ##
+
+---
+
+<h1 align="center">Clase 8 - 7 de mayo, 2025</h1>
+
+##
+
+---
+
+<h1 align="center">Clase 8 - 14 de mayo, 2025</h1>
+
+##
+
+---
+
+<h1 align="center">Clase 8 - 21 de mayo, 2025</h1>
+
+##
+
+---
