@@ -915,7 +915,130 @@ Podemos virtualizar por muchas razones:
 
 <h1 align="center">Clase 7 - 30 de abril, 2025</h1>
 
-##
+## Docker
+
+### Concepto
+
+- Plataforma open-source que permite empaquetar y ejecutar una aplicación en contenedores livianos.
+- Se usa para:
+  - Desarrollo/testing.
+  - Escalado y deployment.
+  - Más servicios en un equipo sin VMs.
+- Docker Engine, el runtime que usa Docker, se divide en 3 componentes:
+  - **Docker Daemon (dockerd)**:
+    - Es el servidor.
+    - Responsable por crear, ejecutar y monitorear los contenedores, construir imágenes, etc.
+  - **API**:
+    - Especifica la interface que los programas pueden usar para interactuar con el servidor.
+  - **CLI**:
+    - Cliente.
+    - Permite a los usuarios interactuar con el servidor mediante comandos.
+
+### Características
+
+- Usa una arquitectura C/S.
+- El cliente y el servidor:
+  - Se pueden ejecutar en el mismo sistema (vía IPC o socket domain) o en diferentes nodos (vía socket TCP/IP).
+  - Se distribuyen como binarios.
+  - Ejecutan en espacio de usuario.
+- El Docker Daemon escucha por API requests.
+- Se comunican usando la REST API de Docker, el cliente envía comandos HTTP.
+- Además de la CLI existe una interface gráfica: Docker Desktop.
+
+### Funcionamiento
+
+- Docker usa una serie de características del kernel para poder proveer contenedores:
+  - **Namespaces**:
+    - Docker los usa para proveer el espacio de trabajo aislado que llamamos contenedor.
+    - Por cada contenedor, Docker crea un conjunto de namespaces (entre ellos pid, net, ipc y mnt).
+  - **Cgroups**:
+    - Para (opcionalmente) limitar los recursos asignados a un contenedor.
+  - **Union file systems**:
+    - Se usan como filesystem de los contenedores.
+    - Docker puede usar overlay2, AUFS, btrfs, vfs, y DeviceMapper.
+
+### Definiciones
+
+- **Imágen**: Template de sólo lectura con todas las instrucciones para construir un contenedor. Una imágen puede basarse en otras.
+- **Contenedor**: Instancia de una imágen en ejecución.
+- **Registry**: Almacén de imágenes de Docker. Puede ser público o privado. Por defecto, Docker usa Docker Hub.
+- **Dockerfile**: Archivo que indica los pasos necesarios para construir la imágen.
+
+### Imágenes y capas
+
+- Cada imágen se compone de una serie de capas que se montan una sobre otra.
+- Cada capa es un conjunto de diferencias con la capa previa.
+- Solo la última capa es R/W (la capa del contenedor). Las demás son read-only.
+- Las capas pueden ser reusadas entre las imágenes.
+- Capa escribible permite almacenar datos generados durante la ejecución del contenedor.
+- Docker usa "storage drivers" para almacenar capas de una imágen y para almacenar datos en la capa escribible del contenedor.
+- Hay distintos tipos de storage drivers:
+  - overlay2.
+  - btrfs.
+  - zfs.
+  - etc.
+  - En windows, windowsfilter.
+- Apilando las capas:
+  - Cada capa que se baja, se extrae el contenido en un directorio del filesystem del nodo.
+  - Al ejecutar el contenedor desde una imagen, se genera un union-filesystem donde las capas se apilan una sobre otra.
+  - Usando chroot, se estable el union-filesystem creado como directorio raíz del contenedor.
+  - Por ultimo, se crea un nuevo directorio para el contenedor que permite modificar el filesystem (capa escribible de contenedor).
+- El directorio modificable es el que permite correr múltiples contenedores a partir de las mismas capas (uno nuevo por cada contenedor).
+
+### Dockerfile
+
+- Cada imágen se contruye siguiendo las instrucciones de un dockerfile.
+- Cada instrucción en el dockerfile añade una nueva capa a la imágen.
+
+### Contenedores
+
+- Un contenedor es una instancia de una imágen.
+- La diferencia principal entre contenedor e imagen es la capa escribible.
+  - Esta capa se elimina al eliminar al contenedor.
+  - Las capas inferiores se mantienen intactas.
+- Desde una imágen es posible generar varios contenedores.
+- Cada contenedor es autónomo y ejecuta en su propio entorno aislado.
+- Todos los contenedores comparten el kernel y ejecutan en sus propios namespaces.
+- Los contenedores pueden ser iniciados, detenidos, pausados o destruidos usando la Docker CLI.
+
+### Almacenamiento
+
+- Los archivos creados dentro de un contenedor son almacenados en una capa escribible.
+- Los datos escritos en el contenedor no persisten cuando es destruido.
+- Docker tiene dos opciones para almacenar datos en el host para que sean persistentes:
+  - **Volumes**: almacenados en una parte del filesystem administrada por Docker (por default: /var/lib/docker/volumes)
+  - **Bind Mounts**: pueden estar en cualquier parte del filesystem. Pueden ser modificados por procesos que no sean de Docker.
+  - Ambos deben ser montados en el contenedor.
+  - Volumes permite una mejor portabilidad entre sistemas.
+
+### Networking
+
+- Contenedores tienen el networking habilitado por default, aunque puede desactivarse.
+- Es posible realizar conexiones salientes.
+- Los usuarios pueden definir nuevas redes.
+- Múltiples contenedores pueden conectarse a la misma red y comunicarse usando direcciones IP y/o nombre.
+- Un contenedor se puede conectar a varias redes a la vez.
+- Para hacer disponible un servicio el contenedor debe publicar el correspondiente puerto.
+- Dos contenedores en el mismo host no pueden publicar el mismo puerto.
+- Los contenedores usan los mismos servidores DNS que el nodo host, pero se pueden modificar.
+
+### Arquitectura
+
+![Arquitectura Docker](https://i.imgur.com/BzzpW2B.png)
+
+### Comandos básicos
+
+- `docker pull httpd`: Descarga la imágen de Apache de DockerHUB.
+- `docker run httpd`: Ejecuta la imágen.
+- `docker image build -t NOMBRE_TAG`: Crea una imágen a partir de un dockerfile.
+- `docker run NOMBRE_TAG`: Ejecuta la imágen creada.
+- `docker push NOMBRE_TAG\USUARIO_DOCKERHGUB/REPOSITORIO`: Sube la imágen a DockerHUB (hay que ejecutar `docker login` previamente).
+- `docker info`: Información general y configuración.
+- `docker ps`: Contenedores en ejecución.
+- `docker image ls`: Imágenes y contenedores
+- `docker container ls -a`: Imágenes y contenedores
+- `docker pull ubuntu && \docker run -v ./dir_comp:/mnt -it ubuntu`: Ejecuta el container de Ubuntu en modo interactivo (bash).
+- `docker commit CONTAINER REPOSITORY:TAG`: Crea una nueva imágen con los cambios del contenedor.
 
 ---
 
