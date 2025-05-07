@@ -1044,7 +1044,126 @@ Podemos virtualizar por muchas razones:
 
 <h1 align="center">Clase 8 - 7 de mayo, 2025</h1>
 
-##
+## Docker Compose
+
+### Definición
+
+- Herramienta para correr aplicaciones que requieren múltiples contenedores.
+- En DC, los contenedores se llaman **servicios**.
+- Facilita la creación de servicios, almacenamiento y red mediante un **archivo YAML**.
+- Este archivo YAML se ubica en el directorio de trabajo y recibe el nombre **compose.yaml** por defecto.
+- También tiene comandos para iniciar, parar y construir servicios, monitorear los servicios en ejecución, logging, etc.
+
+### Historia breve
+
+- Desarrollado en Orchad.
+- Adquirido por Docker en 2014.
+- La versión 1 fue hecha en Python y salió en 2014.
+- La versión 2 fue hecha en Go y salió en 2020.
+
+### Uso
+
+- `docker compose up -d` inicia todos los servicios.
+  - -d hace que se ejecuten en background.
+  - En versiones anteriores se usaba `docker-compose`.
+- Actualmente no es necesario indicar la versión (pero puede aparecer en antiguos archivos).
+- Cada servicio termina siendo un contenedor.
+- Se puede indicar la política de reinicio del contenedor si se detiene por algún motivo.
+- Permite definir la dependencia de arranque entre contenedores.
+- Se puede indicar que el contenedor se debe crear a partir de la imagen creada desde un Dockerfile.
+- Por defecto, compose establece una red default a la que todos los contenedores se unen.
+- Es posible definir redes propias para cada compose.
+
+## Podman
+
+### Definición
+
+- Podman = Pod Manager.
+- Es un contenedor engine daemonless para desarrollar, administrar y ejecutar contenedores OCI (Open Container Initiative) en sistemas Linux.
+- Un pod comprende uno o más contenedores que comparten los mismos namespaces.
+- Utiliza prácticamente los mismos comandos que Docker (incluso tiene un `podman compose`).
+- Permite ejecutar imágenes con el formato OCI, tanto como Docker (v1 y v2).
+- Soporta todos los runtimes de OCI: runc, crun, etc.
+- También pueden ser ejecutados en Windows y MAC.
+
+### Características
+
+- No necesita un proceso demonio central para administrar los contenedores.
+- Contenedores inician como procesos standard del sistema.
+- Basado en la librería libpod que contiene toda la lógica necesaria para instrumentar el ciclo de vida de un contenedor:
+  - Formato de las imágenes, tanto Docker como OCI. Autenticación, descarga y almacenamiento de imágenes desde una registry, construcción de nuevas imágenes, etc.
+  - Ciclo de vida de los contenedores: crear, ejecutar, eliminar, etc. contenedores.
+  - Manejo tanto de simple contenedores como de pods.
+  - Aislamiento de los contenedores/pods (mediante **cgroups** a bajo nivel).
+  - CLI para administración de los contenedores/pods.
+  - Soporte de contenedores/pods rootless.
+    • libpod interactúa con los runtimes.
+
+### Pod
+
+- Un pod es un concepto que proviene de Kubernetes, donde los contenedores se ejecutan en pods.
+- Representa a uno o más contenedores trabajando en conjunto con un objetivo común.
+  - Comparten almacenamiento y una única IP.
+- Los servicios en los contenedores dentro del pod se pueden comunicar entre sí usando localhost.
+- Los pods se pueden crear vacíos y luego agregarles contenedores.
+- Ventajas de agrupar dos o más contenedores vía pods:
+  - Compartir algunos namespaces y cgroups.
+  - Compartir volúmenes para almacenar datos persistentes.
+  - Compartir la misma configuración.
+  - Compartir el mismo IPC.
+- Cada pod **incluye un contenedor llamado infra**.
+  - También se lo suele llamar el pause container.
+  - Su finalidad es mantener abiertos los namespaces asociados con el pod.
+- Al agregarse un contenedor al pod, los procesos comparten varios namespaces del pod.
+- Al compartir el net namespace, los procesos se comunican usando localhost (127.0.0.1).
+- Es posible iniciar/detener un pod y/o un contenedor dentro de un pod.
+- La mayoría de los atributos se asignan al contenedor infra: port binding, namespaces, cgroups.
+- Si se desea cambiar un atributo se debe regenerar el pod (por ej. agregar un contenedor que escuche en un nuevo puerto).
+
+### Proceso conmon
+
+- Por cada contenedor dentro del pod existe un **proceso conmon**.
+  - Conmon es un programa C liviano que monitorea un contenedor hasta que finaliza.
+  - Es una herramienta de comunicación entre el container engine (Podman) y el OCI runtime (runc o crun).
+  - Ejecuta el runtime, indicándole donde se encuentra el archivo OCI spec y el rootfs (capa que será el punto de montaje en el contenedor).
+  - Su principal tarea es monitorear el proceso principal del contenedor.
+  - Salva el código de salida si el contenedor muere.
+  - Mantiene la tty del contenedor abierta para poder conectarse a él.
+
+### Arquitectura
+
+![Arquitectura de Podman](https://i.imgur.com/hX2oEJA.png)
+
+## Estandarización
+
+### Historia
+
+- En 2013, Docker usaba LXC como su motor de contenedores.
+- En 2014 introdujo su propia librería, **libcontainer**, para reemplazar a LXC.
+- En 2014/2015, la compañía CoreOS lanzó su propio motor de contenedores, rkt, que era daemon-less. Luego comprada por RedHat.
+- En 2017, la Cloud Native Computing Foundation (CNCF), cuya meta es coordinar proyectos relacionados a la nube y contenedores, decidió adoptar rkt y containerd (donado por Docker).
+- Containerd es el runtime usado por Docker Engine (en conjunto con runc).
+- En 2015, Docker, en conjunto con RedHat, AWS, Google, etc, inicia el Open Container Iniciative (OCI) auspiciado por la Linux Foundation.
+- OCI se encarga de realizar la especificación de runtime y de imágenes.
+- También lanzó la primera implementación de un runtime de contenedores que cumplen con esa especificación: runc
+- Además, la OCI definió la base para una conexión más directa en Kubernetes y el correspondiente engine.
+- La comunidad de Kubernetes libera CRI (Container Runtime Interface), plugin que permite la adopción de una amplia variedad de runtimes.
+- En 2017, RedHat libera CRI-O que permite el uso de runtimes compatibles con OCI. Es una alternativa liviana a usar Docker, rkt, etc.
+
+### Contenedores Orquestador
+
+- Un Cluster es un grupo de nodos interconectados que trabajan en conjunto.
+  - Permite aprovisionar, desplegar, escalar y administrar automáticamente contenedores sin preocuparse por la infraestructura subyacente.
+  - Creación de servicios de manera declarativa.
+  - En general, dos tipos de nodos:
+    - **Manager**: encargado de administrar el cluster.
+    - **Worker**: encargado de ejecutar las aplicaciones.
+- **Service Discovery**: orquestador brinda información para encontrar otro servicio.
+- **Routing**: paquetes deben llegar entre servicios ejecutando en diferentes nodos.
+- **Load Balancing**: distribuir las cargas de trabajos entre las distintas instancias de un servicio.
+- **Scaling**: aumentar/disminuir las instancias de un servicio según la carga de trabajo.
+- Ejemplos:
+  - Kubernetes, Docker Swarm, RedHat Openshift, Rancher, etc.
 
 ---
 
