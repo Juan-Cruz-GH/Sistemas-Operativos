@@ -174,11 +174,24 @@ Las principales funcionalidades necesarias para poder implementar containers son
 
 ### Debido a que para la realización de la práctica es necesario tener más de una terminal abierta simultáneamente tenga en cuenta la posibilidad de lograr esto mediante alguna alternativa (ssh, terminales gráficas, etc.)
 
-### En algunos casos suele ser conveniente restringir la cantidad de información a la que un proceso puede acceder. Uno de los métodos más simples para aislar servicios es chroot, que consiste simplemente en cambiar lo que un proceso, junto con sus hijos, consideran que es el directorio raíz, limitando de esta forma lo que pueden ver en el sistema de archivos. En esta sección de la práctica se preparará un árbol de directorios que sirva como directorio raíz para la ejecución de una shell.
+### En algunos casos suele ser conveniente restringir la cantidad de información a la que un proceso puede acceder. Uno de los métodos más simples para aislar servicios es `chroot`, que consiste simplemente en cambiar lo que un proceso, junto con sus hijos, consideran que es el directorio raíz, limitando de esta forma lo que pueden ver en el sistema de archivos. En esta sección de la práctica se preparará un árbol de directorios que sirva como directorio raíz para la ejecución de una shell.
 
 #### 1. ¿Qué es el comando chroot? ¿Cuál es su finalidad?
 
+El comando `chroot` cambia el directorio raíz aparente de un proceso en ejecución y de todos sus procesos hijos si los tuviera.
+
+Su finalidad es restringir lo que ese proceso y sus hijos pueden ver y acceder, para lograr crear un entorno aislado para ese proceso.
+
 #### 2. Crear un subdirectorio llamado sobash dentro del directorio root. Intente ejecutar el comando `chroot /root/sobash`. ¿Cuál es el resultado? ¿Por qué se obtiene ese resultado?
+
+```bash
+root@so:~# mkdir sobash
+root@so:~# cd sobash
+root@so:~/sobash# chroot /root/sobash/
+chroot: failed to run command '/bin/bash': No such file or directory
+```
+
+Se obtiene este resultado porque Linux no logra encontrar al archivo `/bin/bash` necesario para poder ejecutar `chroot`.
 
 #### 3. Cree la siguiente jerarquía de directorios dentro de sobash:
 
@@ -192,31 +205,115 @@ sobash/
 
 #### 4. Verifique qué bibliotecas compartidas utiliza el binario `/bin/bash` usando el comando `ldd /bin/bash`. ¿En qué directorio se encuentra linux-vdso.so.1? ¿Por qué?
 
+```bash
+root@so:~/sobash/lib# ldd /bin/bash
+    linux-vdso.so.1 (0x00007f53517fe000)
+    libtinfo.so.6 => /lib/x86_64-linux-gnu/libtinfo.so.6 (0x0...)
+    libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x0...)
+    /lib64/ld-linux-x86-64.so.2 (0x0...)
+```
+
+- Las bibliotecas compartidas que usa `/bin/bash` son:
+  - **linux-vdso.so.1**
+  - **libtinfo.so.6**
+  - **libc.so.6**
+  - **/lib64/ld-linux-x86-64.so.2**
+- linux-vdso.so.1 no se encuentra en un directorio tradicional del sistema de archivos, porque es una biblioteca virtual dinámica proporcionada directamente por el kernel de Linux: es decir, en lugar de ser un archivo en el disco, el kernel mapea esta biblioteca directamente al espacio de direcciones de cada proceso que la utiliza.
+
 #### 5. Copie en `/root/sobash` el programa `/bin/bash` y todas las librerías utilizadas por el programa bash en los directorios correspondientes. Ejecute nuevamente el comando chroot ¿Qué sucede ahora?
+
+```bash
+cp /bin/bash /root/sobash/bin
+cp /lib/x86_64-linux-gnu/libtinfo.so.6 /root/sobash/lib/x86_64-linux-gnu
+cp /lib/x86_64-linux-gnu/libc.so.6 /root/sobash/lib/x86_64-linux-gnu
+cp /lib64/ld-linux-x86-64.so.2 /root/sobash/lib64
+```
+
+```bash
+root@so:~/sobash# chroot /root/sobash/
+bash-5.2#
+```
+
+Ahora el comando se ejecuta exitosamente.
 
 #### 6. ¿Puede ejecutar los comandos `cd "directorio"` o `echo`? ¿Y el comando `ls`? ¿A qué se debe esto?
 
+Puedo ejecutar los comandos `cd` y `echo`, pero no `ls` debido a que éste es un ejecutable externo al cual ya no tenemos acceso luego de cambiar el directorio raíz.
+
 #### 7. ¿Qué muestra el comando `pwd`? ¿A qué se debe esto?
 
+```bash
+bash-5.2# pwd
+/
+```
+
+Muestra al directorio `/`. Esto se debe a que toma como directorio raíz el directorio donde se ejecutó chroot, creando una especie de jaula, haciendo que no se pueda acceder ni ver archivos y comandos fuera del directorio.
+
 #### 8. Salir del entorno chroot usando `exit`
+
+```bash
+bash-5.2# exit
+exit
+root@so:~/sobash#
+```
 
 #### 9. Usando el repositorio de la cátedra acceda a los materiales en `practica4/02-chroot`
 
 ##### a. Verifique que tiene instalado busybox en `/bin/busybox`
 
-##### b. Cree un chroot con busybox usando `/buildbusyboxroot.sh`
+```bash
+root@so:/home/so/codigo-para-practicas/practica4/02-chroot# which /bin/busybox
+/bin/busybox
+```
+
+##### b. Cree un chroot con busybox usando `./buildbusyboxroot.sh`
+
+```bash
+root@so:/home/so/codigo-para-practicas/practica4/02-chroot# ./buildbusyboxroot.sh
+  linux-vdso.so.1 (0x0...)
+  libresolv.so.2 => /lib/x86_64-linux-gnu/libresolv.so.2 (0x0...)
+  libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x0...)
+  /lib64/ld-linux-x86-64.s0.2 (0x0...)
+BusyBox root filesystem created in /home/so/codigo-para-practicas/practica4/02-chroot/busyboxroot
+You can now chroot into it with:
+chroot /home/so/codigo-para-practicas/practica4/02-chroot/busyboxroot /bin/sh
+```
 
 ##### c. Entre en el chroot
 
+```bash
+chroot /home/so/codigo-para-practicas/practica4/02-chroot/busyboxroot /bin/sh
+
+BusyBox v1.35.0 (Debian 1:1.35.0-4+b3) built-in shell (ash)
+Enter 'help' for a list of built-in commands.
+
+/ #
+```
+
 ##### d. Busque el directorio `/home/so` ¿Qué sucede? ¿Por qué?
+
+Este directorio "no existe" luego de hacer el chroot. Está inaccesible.
 
 ##### e. Ejecute el comando `ps aux` ¿Qué procesos ve? ¿Por qué (pista: ver el contenido de `/proc`)?
 
+Al ejecutar el comando, no se ve ningún proceso.
+
+El directorio `/proc` está vacío.
+
 ##### f. Monte `/proc` con `mount -t proc proc /proc` y vuelva a ejecutar `ps aux` ¿Qué procesos ve? ¿Por qué?
+
+Ahora vemos todos los procesos de nuestro sistema original.
 
 ##### g. Acceda a `/proc/1/root/home/so` ¿Qué sucede?
 
+```bash
+/ # cd /proc/1/root/home/so
+sh: getcwd: No such file or directory
+```
+
 ##### h. ¿Qué conclusiones puede sacar sobre el nivel de aislamiento provisto por chroot?
+
+Concluyo que si bien `chroot` tiene su utilidad, es bastante limitado y puede ser eludido con facilidad.
 
 ## Control Groups
 
