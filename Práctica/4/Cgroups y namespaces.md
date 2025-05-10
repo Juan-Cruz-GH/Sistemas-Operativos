@@ -325,11 +325,79 @@ Concluyo que si bien `chroot` tiene su utilidad, es bastante limitado y puede se
 
 #### 1. Editar `/etc/default/grub`: Cambiar `GRUB_CMDLINE_LINUX_DEFAULT="quiet"` por `GRUB_CMDLINE_LINUX_DEFAULT="quiet systemd.unified_cgroup_hierarchy=0"`.
 
+```bash
+root@so:/home/so# cat /etc/default/grub
+# If you change this file, run 'update-grub' afterwards to update
+# /boot/grub/grub.cfg.
+# For full documentation of the options in this file, see:
+#   info -f grub -n 'Simple configuration'
+
+GRUB_DEFAULT=0
+GRUB_TIMEOUT=5
+GRUB_DISTRIBUTOR=`lsb_release -i -s 2> /dev/null || echo Debian`
+GRUB_CMDLINE_LINUX_DEFAULT="quiet"
+GRUB_CMDLINE_LINUX=""
+
+# If your computer has multiple operating systems installed, then you
+# probably want to run os-prober. However, if your computer is a host
+# for guest OSes installed via LVM or raw disk devices, running
+# os-prober can cause damage to those guest OSes as it mounts
+# filesystems to look for things.
+#GRUB_DISABLE_OS_PROBER=false
+
+# Uncomment to enable BadRAM filtering, modify to suit your needs
+# This works with Linux (no patch required) and with any kernel that obtains
+# the memory map information from GRUB (GNU Mach, kernel of FreeBSD ...)
+#GRUB_BADRAM="0x01234567,0xfefefefe,0x89abcdef,0xefefefef"
+
+# Uncomment to disable graphical terminal
+#GRUB_TERMINAL=console
+
+# The resolution used on graphical terminal
+# note that you can use only modes which your graphic card supports via VBE
+# you can see them in real GRUB with the command `vbeinfo'
+#GRUB_GFXMODE=640x480
+
+# Uncomment if you don't want GRUB to pass "root=UUID=xxx" parameter to Linux
+#GRUB_DISABLE_LINUX_UUID=true
+
+# Uncomment to disable generation of recovery mode menu entries
+#GRUB_DISABLE_RECOVERY="true"
+
+# Uncomment to get a beep at grub start
+#GRUB_INIT_TUNE="480 440 1"
+```
+
+Cambio la línea `GRUB_CMDLINE_LINUX_DEFAULT="quiet"` usando **vim**.
+
 #### 2. Actualizar la configuración de GRUB: `sudo update-grub`.
+
+```bash
+root@so:/home/so# sudo update-grub
+Generating grub configuration file ...
+Found linux image: /boot/vmlinuz-6.13.7
+Found initrd image: /boot/initrd.img-6.13.7
+Found linux image: /boot/vmlinuz-6.13.7.old
+Found initrd image: /boot/initrd.img-6.13.7
+Found linux image: /boot/vmlinuz-6.1.0-31-amd64
+Found initrd image: /boot/initrd.img-6.1.0-31-amd64
+Found linux image: /boot/vmlinuz-6.1.0-29-amd64
+Found initrd image: /boot/initrd.img-6.1.0-29-amd64
+Warning: os-prober will not be executed to detect other bootable partitions.
+Systems on them will not be added to the GRUB boot configuration.
+Check GRUB_DISABLE_OS_PROBER documentation entry.
+done
+```
 
 #### 3. Reiniciar la máquina
 
 #### 4. Verificar que se esté usando CGroups 1. Para esto basta con hacer `ls /sys/fs/cgroup/`. Se deberían ver varios subdirectorios como cpu, memory, blkio, etc. (en vez de todo montado de forma unificada).
+
+```bash
+so@so:~$ ls /sys/fs/cgroup/
+blkio  cpuacct      devices  hugetlb  net_cls           net_prio    pids  systemd
+cpu    cpu,cpuacct  freezer  misc     net_cls,net_prio  perf_event  rdma  unified
+```
 
 #### A continuación se probará el uso de cgroups. Para eso se crearán dos procesos que compartirán una misma CPU y cada uno la tendrá asignada un tiempo determinado. Nota: es posible que para ejecutar `xterm` tenga que instalar un gestor de ventanas. Esto puede hacerse con `apt-get install xterm`.
 
@@ -337,13 +405,80 @@ Concluyo que si bien `chroot` tiene su utilidad, es bastante limitado y puede se
 
 #### 1. ¿Dónde se encuentran montados los cgroups? ¿Qué versiones están disponibles?
 
+Los cgroups están montados en el **sistema de archivos virtual**, típicamente en: `/sys/fs/cgroup/`.
+
+Existen dos versiones de cgroups:
+
+- **v1**:
+
+  - Introducido en el kernel 2.6.24.
+  - Cada subsistema (CPU, memoria, I/O, etc.) se monta en su propio mount point.
+  - Ejemplo de estructura:
+
+  ```
+  /sys/fs/cgroup/cpu/
+  /sys/fs/cgroup/memory/
+  /sys/fs/cgroup/blkio/
+  ```
+
+- **v2**:
+
+  - Introducido en el kernel 4.5.
+  - Unifica todos los controladores bajo un solo hierarchy tree.
+  - Punto de montaje típico:
+
+  ```
+  /sys/fs/cgroup/
+  ```
+
 #### 2. ¿Existe algún controlador disponible en cgroups v2? ¿Cómo puede determinarlo?
+
+Los controladores son módulos que gestionan distintos recursos del sistema: CPU, memoria, I/O, etc.
+
+En cgroups v2 existen controladores disponibles, solo que se manejan de forma unificada en una única jerarquía (a diferencia de cgroups v1, donde **cada controlador tenía su propio punto de montaje**).
+
+Para ver los controladores disponibles, podemos ejecutar (en v2): `cat /sys/fs/cgroup/cgroup.controllers`.
 
 #### 3. Analice qué sucede si se remueve un controlador de cgroups v1 (por ej. `Umount /sys/fs/cgroup/rdma`).
 
+```bash
+root@so:/home/so# umount /sys/fs/cgroup/rdma
+root@so:/home/so# umount /sys/fs/cgroup/rdma
+umount: /sys/fs/cgroup/rdma: no montado.
+```
+
+Lo que se hizo fue desmontar el sistema de archivos virtual asociado al controlador **rdma**. Esto implica que el sistema deja de aplicar límites o monitoreo asociados a ese controlador.
+
 #### 4. Crear dos cgroups dentro del subsistema cpu llamados cpualta y cpubaja. Controlar que se hayan creado tales directorios y ver si tienen algún contenido `mkdir /sys/fs/cgroup/cpu/"nombre_cgroup"`
 
+```bash
+root@so:/home/so# mkdir /sys/fs/cgroup/cpu/cpualta
+root@so:/home/so# mkdir /sys/fs/cgroup/cpu/cpubaja
+root@so:/home/so# ls /sys/fs/cgroup/cpu/cpubaja/
+cgroup.clone_children  cpuacct.usage         cpuacct.usage_percpu_sys   cpuacct.usage_user  cpu.cfs_quota_us  cpu.stat           tasks
+cgroup.procs           cpuacct.usage_all     cpuacct.usage_percpu_user  cpu.cfs_burst_us    cpu.idle          cpu.stat.local
+cpuacct.stat           cpuacct.usage_percpu  cpuacct.usage_sys          cpu.cfs_period_us   cpu.shares        notify_on_release
+root@so:/home/so# ls /sys/fs/cgroup/cpu/cpualta/
+cgroup.clone_children  cpuacct.usage         cpuacct.usage_percpu_sys   cpuacct.usage_user  cpu.cfs_quota_us  cpu.stat           tasks
+cgroup.procs           cpuacct.usage_all     cpuacct.usage_percpu_user  cpu.cfs_burst_us    cpu.idle          cpu.stat.local
+cpuacct.stat           cpuacct.usage_percpu  cpuacct.usage_sys          cpu.cfs_period_us   cpu.shares        notify_on_release
+```
+
+Al crear un cgroup dentro de un controlador específico (como cpu), el sistema crea una serie de archivos de control y archivos de estado que permiten configurar y monitorear el uso de recursos para ese grupo en particular. Estos archivos son gestionados por el kernel para aplicar los límites y recopilar estadísticas.
+
+- **cpu.cfs_quota_us**: Define el tiempo máximo (en microsegundos) que los procesos en este cgroup pueden usar en un periodo de tiempo determinado (especificado por cpu.cfs_period_us).
+- **cpu.cfs_period_us**: El periodo de tiempo (en microsegundos) durante el cual se aplica el límite de uso de CPU especificado por cpu.cfs_quota_us.
+- **cpu.shares**: Define la prioridad del cgroup con respecto a otros. Si un cgroup tiene más "shares", se le asignará una mayor proporción de tiempo de CPU cuando haya competencia por los recursos.
+- **tasks**: Lista los procesos que están asociados a este cgroup. Puedes ver qué procesos están actualmente limitados por el controlador de CPU.
+- **cpuacct.usage**: Muestra el tiempo total de CPU que los procesos dentro del cgroup han consumido.
+- **cpuacct.usage_percpu**: Muestra el tiempo de CPU consumido por cada CPU individual.
+- **cpu.stat**: Proporciona estadísticas del uso de CPU de los procesos en este cgroup.
+- **notify_on_release**: Un archivo que indica si el cgroup notificará cuando ya no tenga procesos.
+- **cgroup.procs**: Similar a tasks, muestra los procesos asociados, pero con algunos detalles adicionales de la jerarquía de cgroups.
+
 #### 5. En base a lo realizado, ¿qué versión de cgroup se está utilizando?
+
+Se está usando la versión 1.
 
 #### 6. Indicar a cada uno de los cgroups creados en el paso anterior el porcentaje máximo de CPU que cada uno puede utilizar. El valor de cpu.shares en cada cgroup es 1024. El cgroup cpualta recibirá el 70 % de CPU y cpubaja el 30 %.
 
@@ -351,23 +486,80 @@ Concluyo que si bien `chroot` tiene su utilidad, es bastante limitado y puede se
 
 ##### `echo 307 > /sys/fs/cgroup/cpu/cpubaja/cpu.shares`
 
-#### 7. Iniciar dos sesiones por ssh a la VM.(Se necesitan dos terminales, por lo cual, también podría ser realizado con dos terminales en un entorno gráfico). Referenciaremos a una terminal como termalta y a la otra, termbaja.
+```bash
+root@so:/home/so# echo 717 > /sys/fs/cgroup/cpu/cpualta/cpu.shares
+root@so:/home/so# echo 307 > /sys/fs/cgroup/cpu/cpubaja/cpu.shares
+root@so:/home/so# cat /sys/fs/cgroup/cpu/cpualta/cpu.shares
+717
+root@so:/home/so# cat /sys/fs/cgroup/cpu/cpubaja/cpu.shares
+307
+```
+
+#### 7. Iniciar dos sesiones por ssh a la VM. (Se necesitan dos terminales, por lo cual, también podría ser realizado con dos terminales en un entorno gráfico). Referenciaremos a una terminal como termalta y a la otra, termbaja.
 
 #### 8. Usando el comando `taskset`, que permite ligar un proceso a un core en particular, se iniciará el siguiente proceso en background. Uno en cada terminal. Observar el PID asignado al proceso que es el valor de la columna 2 de la salida del comando.
 
 ##### `taskset -c 0 md5sum /dev/urandom &`
 
+- **termalta** (terminal izquierda):
+
+```bash
+so@so:~$ taskset -c 0 md5sum /dev/urandom &
+[1] 3921
+so@so:~$
+```
+
+- **termbaja** (terminal derecha):
+
+```bash
+so@so:~$ taskset -c 0 md5sum /dev/urandom &
+[1] 3955
+so@so:~$
+```
+
 #### 9. Observar el uso de la CPU por cada uno de los procesos generados (con el comando `top` en otra terminal). ¿Qué porcentaje de CPU obtiene cada uno aproximadamente?
+
+![Output comando top](https://i.imgur.com/X4bHkq3.png)
+
+Se puede ver que cada proceso generado está usando la mitad de la CPU aproximadamente.
 
 #### 10. En cada una de las terminales agregar el proceso generado en el paso anterior a uno de los cgroup (termalta agregarla en el cgroup cpualta, termbaja en cpubaja. El process_pid es el que obtuvieron después de ejecutar el comando taskset)
 
 ##### `echo "process_pid" > /sys/fs/cgroup/cpu/cpualta/cgroup.procs`
 
+- **termalta** (terminal izquierda):
+
+```bash
+root@so:/home/so# echo 3921 > /sys/fs/cgroup/cpu/cpualta/cgroup.procs
+```
+
+- **termbaja** (terminal derecha):
+
+```bash
+root@so:/home/so# echo 3955 > /sys/fs/cgroup/cpu/cpubaja/cgroup.procs
+```
+
 #### 11. Desde otra terminal observar cómo se comporta el uso de la CPU. ¿Qué porcentaje de CPU recibe cada uno de los procesos?
+
+![Output comando top usando cgroups](https://i.imgur.com/AVxQyI8.png)
+
+Ahora, el proceso de termalta (PID = 3921), que está administrado por el cgroup cpualta, está usando 70% de la CPU, mientras que el proceso de termbaja (PID = 3955), que está administrado por el cgroup cpubaja, está usando el 30% de la CPU.
 
 #### 12. En termalta, eliminar el job creado (con el comando jobs ven los trabajos, con kill %1 lo eliminan. No se olviden del %.). ¿Qué sucede con el uso de la CPU?
 
+```bash
+root@so:/home/so# kill 3921
+```
+
+![Output comando top una vez eliminado el proceso de termalta](https://i.imgur.com/2KNPfEl.png)
+
+Luego de eliminar al proceso de termalta que estaba usando 70% de la CPU, el proceso de cpubaja pasa a usar el 100% de la CPU. Esto ocurre porque si bien ese proceso no puede usar más del 30% de CPU, eso solo se asegura si hay más de un proceso ejecutándose dentro del control group. Como ahora hay uno solo, puede usar el 100% de la CPU.
+
 #### 13. Finalizar el otro proceso md5sum.
+
+```bash
+root@so:/home/so# kill 3955
+```
 
 #### 14. En este paso se agregarán a los cgroups creados los PIDs de las terminales (Importante: si se tienen que agregar los PID desde afuera de la terminal ejecute el comando `echo $$` dentro de la terminal para conocer el PID a agregar. Se debe agregar el PID del shell ejecutando en la terminal).
 
@@ -375,9 +567,51 @@ Concluyo que si bien `chroot` tiene su utilidad, es bastante limitado y puede se
 
 ##### `echo $$ > /sys/fs/cgroup/cpu/cpubaja/cgroup.procs` (termbaja)
 
+- **termalta** (terminal izquierda):
+
+```bash
+root@so:/home/so# echo $$ > /sys/fs/cgroup/cpu/cpualta/cgroup.procs
+```
+
+- **termbaja** (terminal derecha):
+
+```bash
+root@so:/home/so# echo $$ > /sys/fs/cgroup/cpu/cpubaja/cgroup.procs
+```
+
 #### 15. Ejecutar nuevamente el comando `taskset -c 0 md5sum /dev/urandom &` en cada una de las terminales. ¿Qué sucede con el uso de la CPU? ¿Por qué?
 
+- **termalta** (terminal izquierda):
+
+```bash
+root@so:/home/so# taskset -c 0 md5sum /dev/urandom &
+[1] 8057
+```
+
+- **termbaja** (terminal derecha):
+
+```bash
+root@so:/home/so# taskset -c 0 md5sum /dev/urandom &
+[1] 8081
+```
+
+![Output comando top](https://i.imgur.com/u9WPcFH.png)
+
+Ocurre lo mismo que antes. Esto pasa porque, como se agregaron las terminales a los cgroups, todos los procesos que éstas terminales creen, también serán controlados por ese mismo cgroup.
+
 #### 16. Si en termbaja ejecuta el comando: `taskset -c 0md5sum /dev/urandom &` (deben quedar 3 comandos md5 ejecutando a la vez, 2 en el termbaja). ¿Qué sucede con el uso de la CPU? ¿Por qué?
+
+- **termbaja** (terminal derecha):
+
+```bash
+root@so:/home/so# taskset -c 0 md5sum
+ /dev/urandom &
+[2] 9082
+```
+
+![Output comando top](https://i.imgur.com/TTJdl6B.png)
+
+Ahora, como la terminal **termbaja** está bajo control del cgroup cpubaja, no puede usar más de 30% de CPU. Por ende, si crea dos procesos, entre ellos sumados no pueden usar más de 30%. Por lo tanto usan aproximadamente 15% cada uno.
 
 ## Namespaces
 
