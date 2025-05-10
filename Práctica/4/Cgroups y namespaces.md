@@ -617,34 +617,192 @@ Ahora, como la terminal **termbaja** está bajo control del cgroup cpubaja, no p
 
 #### 1. Explique el concepto de namespaces.
 
+Los namespaces son una funcionalidad del kernel que permite aislar recursos del sistema para que un proceso o grupo de procesos vea y use solo una "versión limitada" del sistema. Esencialmente, un namespace define lo que un proceso puede ver o acceder.
+
+**Analogía**: Estamos en una oficina (el SO). Hay muchas salas (recursos del SO: procesos, archivos, red, etc.). Ahora, ponemos a cada grupo de empleados (procesos) en oficinas separadas con paredes opacas. Cada grupo solo ve su propia sala, aunque todas estén en el mismo edificio. No pueden ver a los otros ni sus recursos. **Esa pared que aísla la vista y acceso es el namespace**.
+
 #### 2. ¿Cuáles son los posibles namespaces disponibles?
 
-#### 3. ¿Cuáles son los namespaces de tipo Net, IPC y UTS una vez que inicie el sistema (los que se iniciaron la ejecutar la VM de la cátedra)?
+| Nombre   | Archivo en `/proc/[pid]/ns/` | Aísla                                                |
+| -------- | ---------------------------- | ---------------------------------------------------- |
+| `mnt`    | `mnt`                        | Puntos de montaje del filesystem.                    |
+| `pid`    | `pid`                        | Tabla de procesos y sus IDs.                         |
+| `net`    | `net`                        | Interfaces de red, direcciones IP, rutas.            |
+| `uts`    | `uts`                        | Nombre del host y nombre del dominio.                |
+| `ipc`    | `ipc`                        | Recursos IPC (colas, semáforos, memoria compartida). |
+| `user`   | `user`                       | IDs de usuario y grupo (UID/GID).                    |
+| `cgroup` | `cgroup`                     | Visibilidad y uso de los cgroups.                    |
+| `time`   | `time`, `time_for_children`  | Relojes y tiempo del sistema (desde Linux 5.6).      |
+
+#### 3. ¿Cuáles son los namespaces de tipo Net, IPC y UTS una vez que inicie el sistema (los que se iniciaron al ejecutar la VM de la cátedra)?
+
+```bash
+so@so:~$ lsns
+        NS TYPE   NPROCS   PID USER COMMAND
+4026531834 time       15   716 so   /lib/systemd/systemd --user
+4026531835 cgroup     15   716 so   /lib/systemd/systemd --user
+4026531836 pid        15   716 so   /lib/systemd/systemd --user
+4026531837 user       15   716 so   /lib/systemd/systemd --user
+4026531838 uts        15   716 so   /lib/systemd/systemd --user
+4026531839 ipc        15   716 so   /lib/systemd/systemd --user
+4026531840 net        15   716 so   /lib/systemd/systemd --user
+4026531841 mnt        15   716 so   /lib/systemd/systemd --user
+```
+
+Podemos ver que:
+
+- El namespace de net es el 4026531840.
+- El namespace de ipc es el 4026531839.
+- El namespace de uts es el 4026531838.
+
+Estos números son inodos que sirven como IDs únicos de cada namespace.
 
 #### 4. ¿Cuáles son los namespaces del proceso cron? Compare los namespaces net, ipc y uts con los del punto anterior, ¿son iguales o diferentes?
+
+```bash
+root@so:/home/so# pgrep cron
+545
+root@so:/home/so# lsns --task 545
+        NS TYPE   NPROCS PID USER COMMAND
+4026531834 time      177   1 root /sbin/init
+4026531835 cgroup    177   1 root /sbin/init
+4026531836 pid       177   1 root /sbin/init
+4026531837 user      177   1 root /sbin/init
+4026531838 uts       174   1 root /sbin/init
+4026531839 ipc       177   1 root /sbin/init
+4026531840 net       177   1 root /sbin/init
+4026531841 mnt       173   1 root /sbin/init
+```
+
+| Proceso              | net        | ipc        | uts        |
+| -------------------- | ---------- | ---------- | ---------- |
+| **Terminal inicial** | 4026531840 | 4026531839 | 4026531838 |
+| **cron**             | 4026531840 | 4026531839 | 4026531838 |
+
+Podemos ver que estos dos procesos comparten los mismos namespaces para los 3 tipos mencionados.
 
 #### 5. Usando el comando `unshare` crear un nuevo namespace de tipo UTS.
 
 ##### a. `unshare --uts sh`
 
+```bash
+root@so:/home/so# unshare --uts sh
+#
+```
+
 ##### b. ¿Cuál es el nombre del host en el nuevo namespace? (comando hostname)
 
-##### c. Ejecutar el comando `lsns`. ¿Qué puede ver con respecto a los namespace?.
+```bash
+# hostname
+so
+```
+
+##### c. Ejecutar el comando `lsns`. ¿Qué puede ver con respecto a los namespaces?
+
+```bash
+# lsns
+        NS TYPE   NPROCS   PID USER             COMMAND
+4026531834 time      178     1 root             /sbin/init
+4026531835 cgroup    178     1 root             /sbin/init
+4026531836 pid       178     1 root             /sbin/init
+4026531837 user      178     1 root             /sbin/init
+4026531838 uts       173     1 root             /sbin/init
+4026531839 ipc       178     1 root             /sbin/init
+4026531840 net       178     1 root             /sbin/init
+4026531841 mnt       174     1 root             /sbin/init
+4026532163 mnt         1   383 root             ├─/lib/systemd/systemd-udevd
+4026532164 uts         1   383 root             ├─/lib/systemd/systemd-udevd
+4026532165 mnt         1   397 systemd-timesync ├─/lib/systemd/systemd-timesyncd
+4026532185 uts         1   397 systemd-timesync ├─/lib/systemd/systemd-timesyncd
+4026532250 mnt         1   550 root             ├─/lib/systemd/systemd-logind
+4026532253 uts         1   550 root             └─/lib/systemd/systemd-logind
+4026531862 mnt         1    78 root             kdevtmpfs
+4026532196 uts         2  1561 root             sh
+```
+
+Puedo ver que ns tiene varios namespaces nuevos:
+
+- Tiene 5 uts.
+- Tiene 5 mnt.
 
 ##### d. Modificar el nombre del host en el nuevo hostname.
 
+```bash
+# hostname nuevo
+# hostname
+nuevo
+```
+
 ##### e. Abrir otra sesión, ¿cuál es el nombre del host anfitrión?
 
+```bash
+so@so:~$ hostname
+so
+```
+
+Sigue siendo so por más que se haya cambiado en el otro.
+
 ##### f. Salir del namespace (`exit`). ¿Qué sucedió con el nombre del host anfitrión?
+
+```bash
+# exit
+root@so:/home/so# hostname
+so
+```
+
+El nombre del host anfitrión nunca se modificó.
 
 #### 6. Usando el comando `unshare` crear un nuevo namespace de tipo Net.
 
 ##### a. `unshare --pid sh`
 
+```bash
+root@so:/home/so# unshare --pid sh
+#
+```
+
 ##### b. ¿Cuál es el PID del proceso sh en el namespace? ¿Y en el host anfitrión?
 
-##### c. Ayuda: los PIDs son iguales. Esto se debe a que en el nuevo namespace se sigue viendo el comando `ps` sigue viendo el /proc del host anfitrión. Para evitar esto (y lograr un comportamiento como los contenedores), ejecutar: `unshare --pid --fork --mount-proc`
+- **En el namespace**:
+
+```bash
+# ps -C sh
+    PID TTY          TIME CMD
+    818 ?        00:00:00 sh
+    896 ?        00:00:00 sh
+   1943 pts/4    00:00:00 sh
+```
+
+- **En el host anfitrión**:
+
+```bash
+root@so:/home/so# ps -C sh
+    PID TTY          TIME CMD
+    818 ?        00:00:00 sh
+    896 ?        00:00:00 sh
+   1943 pts/4    00:00:00 sh
+```
+
+Es el mismo en ambos.
+
+##### c. Ayuda: los PIDs son iguales. Esto se debe a que en el nuevo namespace el comando `ps` sigue viendo el /proc del host anfitrión. Para evitar esto (y lograr un comportamiento como los contenedores), ejecutar: `unshare --pid --fork --mount-proc`
+
+```bash
+root@so:/home/so# unshare --pid --fork --mount-proc
+```
 
 ##### d. En el nuevo namespace ejecutar `ps -ef`. ¿Qué sucede ahora?
 
+```bash
+root        2693    1292  0 16:07 pts/4    00:00:00 sh
+root        2701    2693  0 16:07 pts/4    00:00:00 ps -ef
+```
+
+Ahora si son distintos los PID, ya que sh ya no puede ver la carpeta /proc/ del host anfitrión.
+
 ##### e. Salir del namespace
+
+```bash
+# exit
+root@so:/home/so#
+```
