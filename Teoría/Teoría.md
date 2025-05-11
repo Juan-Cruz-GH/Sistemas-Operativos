@@ -1167,13 +1167,31 @@ Podemos virtualizar por muchas razones:
 
 ---
 
-<h1 align="center">Clase 8 - 14 de mayo, 2025</h1>
+<h1 align="center">Clase 9 - 14 de mayo, 2025</h1>
 
 ##
 
 ---
 
-<h1 align="center">Clase 8 - 21 de mayo, 2025</h1>
+<h1 align="center">Clase 10 - 21 de mayo, 2025</h1>
+
+##
+
+---
+
+<h1 align="center">Clase 11 - 28 de mayo, 2025</h1>
+
+##
+
+---
+
+<h1 align="center">Clase 12 - 4 de junio, 2025</h1>
+
+##
+
+---
+
+<h1 align="center">Clase 13 - 11 de junio, 2025</h1>
 
 ##
 
