@@ -1169,7 +1169,164 @@ Podemos virtualizar por muchas razones:
 
 <h1 align="center">Clase 9 - 14 de mayo, 2025</h1>
 
-##
+## Protección y Seguridad
+
+### Recursos
+
+- Los recursos informáticos (datos, información, CPU, memoria, dispositivos) deben ser protegidos frente a accesos no autorizados, destrucciones maliciosas o introducción accidental de incoherencias.
+- El responsable de esta protección es, entre otros, el Sistema Operativo, a través de un conjunto de mecanismos.
+- En base a la correcta o incorrecta **aplicación de los mecanismos de protección**, se determina el **nivel de Seguridad** con el que cuenta el sistema.
+
+### Protección vs Seguridad
+
+- La **protección** consiste en mecanismos específicos del SO para resguardar la información dentro de una computadora, para controlar el acceso de los procesos ( o usuarios) a los recursos existentes.
+  - El acceso al sistema se protege a través de autenticación y/o control sobre una DB de usuarios.
+  - El acceso a los recursos del sistema se protege a través de permisos y control de acceso (ya sea éste obligatorio o no).
+- La **seguridad** es una medida de la confianza en que se puede preservar la integridad de un sistema y sus datos.
+  - Usa distintos mecanismos para proteger ante:
+    - Amenazas:
+      - Confidencialidad de los datos.
+      - Integridad de los datos.
+      - Disponibilidad.
+    - Intrusos:
+      - Acceso indebido al sistema o datos.
+    - Pérdida accidental de datos:
+      - Accidentes naturales.
+      - Errores de hardware o software.
+      - Errores humanos.
+
+### Políticas
+
+- Antes de definir los mecanismos de seguridad, se deben definir las políticas.
+- Las políticas definen lo que se quiere hacer, en base a los objetivos. Se asocian a los papeles.
+- Los mecanismos definen cómo se hace. Implementaciones reales.
+- Para cumplir una política puede haber múltiples mecanismos diferentes.
+
+### Objetos
+
+- Un **sistema informático** es una **colección de procesos y objetos**.
+- Un **objeto** puede ser de hardware (CPU, memoria, etc) o de software (archivos, programas, etc).
+- Cada objeto tiene un ID único.
+- Los **procesos** pueden realizar operaciones sobre los objetos.
+
+### Dominios
+
+- Un **dominio** es un conjunto de pares (objeto, derecho). Cada par especifica un objeto y un conjunto de operaciones que se pueden realizar con él.
+- Un **derecho** implica autorización para efectuar esas operaciones.
+- Por ejemplo, si se tiene el dominio D con el par (fileA, {read, write}), un proceso que se ejecuta dentro del dominio D puede leer y escribir en fileA.
+- Quiénes pueden ejecutarse en un dominio?
+  - Puede ser un usuario y define qué puede hacer ese usuario (por defecto lo que no se permite se deniega).
+  - Puede ser un proceso y el conjunto de objetos a los que podrá acceder dependerá de la identidad del proceso.
+  - Puede ser un procedimiento y definirá el conjunto de variables a las que puede acceder (variables locales, globales, etc).
+- En Unix el dominio está definido por el UID y el GID.
+  - Dado un par (UID, GID) hay un conjunto de objetos a los cuales se pued acceder con ciertos permisos.
+  - Dos procesos con igual (UID, GID) pertenecen al mismo dominio, y por ende pueden acceder al mismo conjunto de archivos.
+
+### Dominios y procesos
+
+- Se opera bajo el principio POLA (Principle Of Least Authority): define que los procesos accedan sólo a los objetos que necesitan (con los derechos que necesiten) para completar su tarea.
+- La relación entre un proceso y un dominio puede ser **estática o dinámica**:
+  - **Relación estática**:
+    - Si el conjunto de objetos a los que el proceso accede durante su ciclo de vida es fijo.
+    - Siempre mismo dominio.
+    - Puede generar que los procesos tengan más privilegios de los que necesitan en sus fases de ejecución.
+  - **Relación dinámica**:
+    - Si el conjunto de objetos puede variar.
+    - Puede cambiar de dominio. Por ejemplo usando los bits SETUID y SETGID en UNIX sobre los archivos.
+
+### Matriz de acceso
+
+- Estructura de datos que controla la pertenencia de objetos a dominios y sus derechos.
+- Sus filas representan **dominios**.
+- Sus columnas representan **objetos**.
+- Por lo tanto, cada celda [i, j] representa el conjunto de operaciones (derechos) que un proceso puede invocar en un objeto O<sub>j</sub> dentro del dominio D<sub>i</sub>.
+- Implementa las políticas de protección/seguridad de un sistema.
+
+#### Operación Switch
+
+- Cuando un proceso usa esta operación, cambia de un dominio a otro.
+
+#### Operación Copy
+
+- Puede modificar derechos dentro de una columna.
+- Indica que un proceso ejecutándose en un dominio puede copiar los derechos de acceso de un objeto dentro de su columna.
+
+#### Operación Transferencia
+
+- Similar a Copy solo que ya no existe más donde estaba originalmente (como un Ctrl + X por ejemplo).
+
+#### Operación Propagación
+
+- Se copia el derecho pero no el derecho a copia en el nuevo.
+
+#### Operación Owner
+
+- Puede modificar derechos dentro de una columna.
+- Permite agregar nuevos derechos y borrar existentes.
+- Si la celda [i, j] incluye el derecho de owner entonces un proceso ejecutándose en el dominio D<sub>i</sub> puede agregar y borrar cualquier entrada en la columna j.
+
+#### Operación Control
+
+- Puede modificar derechos dentro de una fila.
+- Indica que pueden modificarse y borrarse derechos dentro de una fila.
+- Esta operación solo aplica a dominios.
+- Si matriz[i, j] incluye el derecho de control, entonces un proceso ejecutándose en el dominio D<sub>i</sub> puede remover cualquier derecho de acceso dentro de la fila j.
+
+#### Implementación de la matriz
+
+##### Problema
+
+- La forma de representar y almacenar a la matriz de acceso no suele ser bajo el formato de matriz porque se desperdiciaría mucho espacio, al poder tener gran cantidad de celdas vacías.
+- Además, la matriz debería estar siempre cargada en memoria, por lo que su tamaño es de suma importancia debido a lo limitada que es la cantidad de memoria del sistema.
+- Generalmente se almacenan solo los elementos ocupados usando 2 métodos:
+  - Por filas.
+  - Por columnas.
+
+##### Tabla global
+
+- La más fácil de implementar.
+- Consiste en un conjunto de tuplas <dominio, objeto, derechos-acceso>.
+- Cada vez que se ejecuta una operación M sobre un objeto O<sub>j</sub> sobre el dominio D<sub>i</sub>, se analiza la tabla y se verifica si se encuentra una terna <Di, Oj, M>
+  - Si se encuentra se permite la operación.
+  - Si no se encuentra se deniega.
+- Su principal desventaja es que el tamaño de la tabla hace que no se pueda almacenar toda en memoria.
+
+##### Lista de control de acceso por objetos
+
+- Consiste en asociar con cada objeto una lista ordenada que contiene a todos los dominios que pueden acceder al objeto, y la de qué forma.
+- Cada columna de la matriz se puede ver como una lista de acceso a un objeto, descartándose elementos vacíos.
+- Para cada objeto, hay una lista de pares ordenados <dominio, derechos>.
+- Cuando se intenta realizar una operación M sobre un objeto O<sub>j</sub> (F1, F2, F3) en el dominio D<sub>i</sub> (A, B, C), se busca en la lista en el objeto D<sub>j</sub> una entrada <Di, Rk>, donde M pertenece al conjunto Rk.
+- Cada archivo tiene asociada una lista de control de acceso.
+
+##### Lista de capacidades por dominio
+
+- Es una lista llamada "lista de capacidades" de objetos del dominio con sus derechos (división por filas).
+- A los elementos de la lista se les conoce como capacidades.
+- El proceso no la accede directamente.
+- Esta lista es un objeto protegido, a la que accede solo el SO.
+- Cada proceso tiene una lista con los objetos que puede usar, junto con qué operaciones (dominio).
+- Presenta dificultades al momento de revocar o modificar un permiso sobre un objeto, ya que se deben recorrer todas las listas de capacidades lo cual es ineficiente.
+- Cada capacidad otorga al propietario ciertos derechos sobre un objeto.
+
+### Sistemas confiables
+
+- Un factor clave que afecta al nivel de seguridad de un sistema es el código.
+  - Código mal intencionado: virus, malware, etc.
+  - Código con errores: backdoors.
+- El gran enemigo de la seguridad es el agregado de funcionalidad, lo cual produce un dilema:
+  - Un sistema minimalista con pocas funcionalidades será probablemente muy seguro, pero no muy útil ni agradable de usar.
+  - Un sistema con muchas funcionalidades será más útil y agradable, pero probablemente tenga más errores y sea más vulnerable.
+
+### Explotación de errores en el código
+
+- Los procesos, junto con el Kernel son una potencial amenaza a la seguridad de un sistema.
+- Los atacantes aprovechan errores en el código del SO, o algún proceso con alto nivel de privilegios con el fin de que los mismos cambien su funcionamiento normal:
+  - Buffer overflow.
+  - Cadenas de formato.
+  - Retorno a libc.
+  - Desbordamiento de enteros.
+  - Inyección de código.
 
 ---
 
