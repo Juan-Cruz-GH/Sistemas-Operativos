@@ -6,13 +6,86 @@
 
 #### 1. Utilizando sus palabras, describa qué es Docker y enumere al menos dos beneficios que encuentre para el concepto de contenedores.
 
+Docker es un proyecto de software open-source que automatiza el despliegue de aplicaciones dentro de **contenedores**, proporcionando una capa adicional de abstracción y automatización de virtualización de aplicaciones en múltiples sistemas operativos.
+
+Docker usa características de aislamiento de recursos de Linux, tales como cgroups y espacios de nombres (namespaces) para permitir que contenedores independientes se ejecuten dentro de una única instancia de Linux, evitando el overhead de iniciar y mantener máquinas virtuales.
+
+Beneficios de los contenedores:
+
+- **Portabilidad**: Los contenedores se ejecutan de forma consistente entre entornos porque se empaquetan junto con todas sus dependencias.
+- **Aislamiento**: Cada contenedor se ejecuta de forma aislada a todos los demás, reduciendo conflictos entre aplicaciones y mejorando la seguridad.
+- **Escalabilidad**: Los contenedores trabajan bien con herramientas como Kubernetes que ayudan a escalar una aplicación.
+- **Eficiencia**: Los contenedores comparten el kernel del SO host, lo cual los hace más rápidos y livianos que las máquinas virtuales tradicionales.
+
 #### 2. ¿Qué es una imagen? ¿Y un contenedor? ¿Cuál es la principal diferencia entre ambos?
+
+- **Imagen**:
+  - Archivo read-only con el código, dependencias y configuraciones necesarias para ejecutar una aplicación.
+  - Estático, nunca cambia.
+  - No persiste datos ni estado al ejecutarse.
+  - Plantilla para crear contenedores.
+  - Se guarda en un repositorio (por ejemplo Docker Hub).
+- **Contenedor**:
+  - Instancia en ejecución de una imagen.
+  - Dinámico → puede ejecutarse, apagarse, modificarse.
+  - Puede mantener estado temporal mientras está activo.
+  - Entorno real donde corre la aplicación.
+  - Se ejecuta en un entorno de contenedores (por ejemplo Docker Engine).
+
+La principal diferencia entre ambos es que **la imagen es la plantilla, mientras que el contenedor es una instancia de esa plantilla**. Pueden instanciarse N contenedores para una misma imagen.
 
 #### 3. ¿Qué es Union Filesystem? ¿Cómo lo utiliza Docker?
 
+Un Union Filesystem es un tipo de filesystem que permite superponer de forma transparente los archivos y directorios de varios filesystems (o "capas"), creando una vista única y coherente.
+
+Sus características principales son:
+
+- **Capas**: Los sistemas de archivos individuales se denominan capas.
+- **Superposición transparente**: Los contenidos de las capas se fusionan de manera que el usuario ve un único sistema de archivos.
+- **Prioridad**: Cuando varias capas contienen un archivo con el mismo nombre y ruta, una capa tiene prioridad sobre las demás (generalmente la capa superior).
+- **Copy-on-write**: Si se realiza una escritura en un archivo que existe en una capa de solo lectura, el UnionFS no modifica la capa original. En su lugar, copia el archivo a una capa escribible (generalmente la capa superior) y aplica los cambios ahí. Esto permite que las capas inferiores permanezcan inalteradas.
+
+Docker usa los Union Filesystems para construir y gestionar sus imágenes y contenedores de forma eficiente, de la siguiente manera:
+
+- **Imágenes en capas**:
+  - Cada instrucción en un Dockerfile crea una nueva capa read-only en la imagen.
+  - Estas capas se apilan una encima de la otra. Por ejemplo, una imagen base de Ubuntu sería una capa, la instalación de un paquete sería otra capa, y el código de la aplicación sería una capa adicional.
+  - Gracias a esto, las capas pueden ser compartidas y reutilizadas entre diferentes imágenes. Si tenemos varias imágenes que usan la misma base de Ubuntu, esa capa base se almacena una sola vez en disco.
+- **Contenedores como capas escribibles**:
+  - Cuando se ejecuta un contenedor a partir de una imagen, Docker toma todas las capas de la imagen y crea una nueva capa superior que es de lectura/escritura.
+  - Esta capa superior es donde se almacenan todos los cambios que ocurren dentro del contenedor mientras está en ejecución (nuevos archivos, modificaciones, eliminaciones, etc).
+  - El UnionFS presenta la vista combinada de todas las capas de la imagen más la capa de escritura del contenedor como un único filesystem para el proceso que se ejecuta dentro del contenedor.
+- **Eficiencia con Copy-on-write**:
+  - Si un archivo existente en una capa inferior (de solo lectura) es modificado o eliminado dentro del contenedor, el UnionFS utiliza el mecanismo CoW. El archivo original en la capa inferior permanece intacto. En cambio, una copia modificada del archivo se escribe en la capa superior de lectura/escritura del contenedor.
+  - Esto ahorra espacio, ya que no se duplica todo el contenido de la imagen cada vez que se inicia un nuevo contenedor, si no que solo se almacenan los cambios.
+  - Además, cuando se elimina un contenedor, su capa de escritura se descarta, dejando la imagen base completamente inalterada y lista para ser utilizada por otro contenedor. Esto garantiza que cada contenedor arranque con un estado "limpio" y predecible de la imagen.
+
 #### 4. ¿Qué rango de direcciones IP utilizan los contenedores cuando se crean? ¿De dónde la obtiene?
 
-#### 5. ¿De qué manera puede lograrse que las datos sean persistentes en Docker? ¿Qué dos maneras hay de hacerlo? ¿Cuáles son las diferencias entre ellas?
+- Por defecto, Docker usa la subred 172.17.0.0/16 para los contenedores.
+- El daemon de Docker se encarga de crear subredes dinámicas y asignar IPs a cada contenedor.
+- Cada red tiene una máscara de subred y gateway por defecto.
+- Las IPs se asignan vía un server DHCP interno de Docker.
+- El usuario puede crear sus propias redes personalizadas con rangos IP específicos usando `docker network create`.
+
+#### 5. ¿De qué manera puede lograrse que los datos sean persistentes en Docker? ¿Qué dos maneras hay de hacerlo? ¿Cuáles son las diferencias entre ellas?
+
+Para la persistencia de datos en Docker, hay dos métodos principales:
+
+- **Volúmenes**:
+  - Docker se encarga de su creación y ubicación en el host.
+  - Persisten incluso si el contenedor se elimina.
+  - Son la mejor opción para datos de aplicaciones (bases de datos, etc.) por su portabilidad y rendimiento.
+  - Se usan con `docker run -v nombre_volumen:/ruta/en/contenedor`.
+  - Se almacenan en `/var/lib/docker/volumes`.
+- **Bind Mounts**:
+  - Vinculan directamente un directorio o archivo del host al contenedor.
+  - Si se elimina la ruta en el host, los datos se pierden.
+  - Ideal para desarrollo (compartir código), archivos de configuración o logs.
+  - Se usan con `docker run -v /ruta/en/host:/ruta/en/contenedor`.
+  - Se pueden almacenar en cualquier lugar de la computadora host.
+
+Los volúmenes son la opción preferida para persistir datos de aplicaciones, gestionados por Docker y más portátiles. Los bind mounts ofrecen un control directo sobre los archivos del host, ideales para el desarrollo y escenarios específicos.
 
 ### Taller
 
