@@ -97,31 +97,223 @@ Los volúmenes son la opción preferida para persistir datos de aplicaciones, ge
 
 ##### a. Obtener una imagen de la última versión de Ubuntu disponible. ¿Cuál es el tamaño en disco de la imagen obtenida? ¿Ya puede ser considerada un contenedor? ¿Qué significa lo siguiente: `Using default tag: latest`?
 
+- Para obtener una imagen de la última versión de Ubuntu, uso el comando `docker pull ubuntu`.
+- Para chequear que se descargó correctamente y a su vez saber cuál es su tamaño en disco, uso el comando `docker images`:
+
+```
+REPOSITORY    TAG       IMAGE ID       CREATED        SIZE
+ubuntu        latest    a0e45e2ce6e6   3 weeks ago    78.1MB
+hello-world   latest    74cc54e27dc4   3 months ago   10.1kB
+```
+
+- La imagen pesa 78.1 MB.
+- Esta imagen NO es un contenedor, ya que un contenedor es una imagen en ejecución, y esta imagen de ubuntu no se encuentra actualmente en ejecución.
+- Cuando ejecuto `docker pull ubuntu`, docker me dice `Using default tag: latest`. Esto significa que por defecto, docker traerá la versión más nueva, reciente y estable de la imagen, a no ser que se especifique un tag en particular con `nombre_imagen:tag`.
+
 ##### b. De la imagen obtenida en el punto anterior iniciar un contenedor que simplemente ejecute el comando `ls -l`.
 
-##### c. ¿Qué sucede si ejecuta el comando `docker [container] run ubuntu /bin/bash1`? ¿Puede utilizar la shell Bash del contenedor?
+Para iniciar un contenedor que ejecute el comando `ls -l` a partir de la imagen de ubuntu que obtuve, ejecuto `docker run --name mi-contenedor ubuntu ls -l` y obtengo el output:
+
+```bash
+juan@juan-Lenovo-IdeaPad-S145-15AST:~$ docker run --name mi-contenedor ubuntu ls -l
+total 48
+lrwxrwxrwx   1 root root    7 Apr 22  2024 bin -> usr/bin
+drwxr-xr-x   2 root root 4096 Apr 22  2024 boot
+drwxr-xr-x   5 root root  340 May 21 02:06 dev
+drwxr-xr-x   1 root root 4096 May 21 02:06 etc
+drwxr-xr-x   3 root root 4096 Apr 15 14:11 home
+lrwxrwxrwx   1 root root    7 Apr 22  2024 lib -> usr/lib
+lrwxrwxrwx   1 root root    9 Apr 22  2024 lib64 -> usr/lib64
+drwxr-xr-x   2 root root 4096 Apr 15 14:04 media
+drwxr-xr-x   2 root root 4096 Apr 15 14:04 mnt
+drwxr-xr-x   2 root root 4096 Apr 15 14:04 opt
+dr-xr-xr-x 290 root root    0 May 21 02:06 proc
+drwx------   2 root root 4096 Apr 15 14:11 root
+drwxr-xr-x   4 root root 4096 Apr 15 14:11 run
+lrwxrwxrwx   1 root root    8 Apr 22  2024 sbin -> usr/sbin
+drwxr-xr-x   2 root root 4096 Apr 15 14:04 srv
+dr-xr-xr-x  13 root root    0 May 21 02:02 sys
+drwxrwxrwt   2 root root 4096 Apr 15 14:11 tmp
+drwxr-xr-x  12 root root 4096 Apr 15 14:04 usr
+drwxr-xr-x  11 root root 4096 Apr 15 14:11 var
+```
+
+Puedo ver al contenedor, aunque se haya detenido (ya que no se lo borró) con `docker ps -a`:
+
+```bash
+juan@juan-Lenovo-IdeaPad-S145-15AST:~$ docker ps -a
+CONTAINER ID   IMAGE     COMMAND   CREATED              STATUS                          PORTS     NAMES
+65d2a89763c5   ubuntu    "ls -l"   About a minute ago   Exited (0) About a minute ago             mi-contenedor
+```
+
+Lo puedo borrar con: `docker rm mi-contenedor`.
+
+##### c. ¿Qué sucede si ejecuta el comando `docker [container] run ubuntu /bin/bash`? ¿Puede utilizar la shell Bash del contenedor?
+
+```bash
+juan@juan-Lenovo-IdeaPad-S145-15AST:~$ docker run ubuntu /bin/bash
+juan@juan-Lenovo-IdeaPad-S145-15AST:~$
+```
+
+Si ejecuto el comando descripto, no puedo usar la shell Bash del contenedor.
 
 ###### i. Modifique el comando utilizado para que el contenedor se inicie con una terminal interactiva y ejecutarlo. ¿Ahora puede utilizar la shell Bash del contenedor? ¿Por qué?
 
+Para que el contenedor se inicie en una terminal interactiva, agrego la flag `-it` de esta forma `docker run -it ubuntu /bin/bash`.
+
+Ahora puedo usar sin problemas la shell Bash del contenedor:
+
+```bash
+juan@juan-Lenovo-IdeaPad-S145-15AST:~$ docker run -it ubuntu /bin/bash
+root@fcc6cd3872d7:/# ls
+bin  boot  dev  etc  home  lib  lib64  media  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var
+root@fcc6cd3872d7:/#
+```
+
+Esto se debe a que la flag `-it` le dice a Docker que inicie el contenedor en modo interactivo, lo cual permite que la entrada y salida estándar del contenedor se redirijan a mi terminal, y por ende me permite interactuar.
+
 ###### ii. ¿Cuál es el PID del proceso bash en el contenedor? ¿Y fuera de éste?
+
+- **En el contenedor posee PID = 1**:
+
+```bash
+root@fcc6cd3872d7:/# ps -ef
+UID          PID    PPID  C STIME TTY          TIME CMD
+root           1       0  0 02:18 pts/0    00:00:00 /bin/bash
+root          14       1  0 02:21 pts/0    00:00:00 ps -ef
+```
+
+- **Fuera del contenedor posee PID = 19978**:
+
+```bash
+juan@juan-Lenovo-IdeaPad-S145-15AST:~$ ps -ef | grep /bin/bash
+juan       19938   17858  0 23:18 pts/0    00:00:00 docker run -it ubuntu /bin/bash
+root       19978   19954  0 23:18 pts/0    00:00:00 /bin/bash
+juan       20068   20044  0 23:22 pts/1    00:00:00 grep --color=auto /bin/bash
+```
 
 ###### iii. Ejecutar el comando `lsns`. ¿Qué puede decir de los namespaces?
 
+- **En el contenedor**:
+
+```bash
+root@fcc6cd3872d7:/# lsns
+        NS TYPE   NPROCS PID USER COMMAND
+4026531834 time        2   1 root /bin/bash
+4026531837 user        2   1 root /bin/bash
+4026533136 mnt         2   1 root /bin/bash
+4026533137 uts         2   1 root /bin/bash
+4026533138 ipc         2   1 root /bin/bash
+4026533139 pid         2   1 root /bin/bash
+4026533140 cgroup      2   1 root /bin/bash
+4026533141 net         2   1 root /bin/bash
+```
+
+- **Fuera del contenedor**:
+
+```bash
+juan@juan-Lenovo-IdeaPad-S145-15AST:~$ lsns
+        NS TYPE   NPROCS   PID USER COMMAND
+4026531834 time       68  1183 juan /usr/bin/pipewire
+4026531835 cgroup     68  1183 juan /usr/bin/pipewire
+4026531836 pid        69  1183 juan /usr/bin/pipewire
+4026531837 user       69  1183 juan /usr/bin/pipewire
+4026531838 uts        68  1183 juan /usr/bin/pipewire
+4026531839 ipc        68  1183 juan /usr/bin/pipewire
+4026531840 net        68  1183 juan /usr/bin/pipewire
+4026531841 mnt        68  1183 juan /usr/bin/pipewire
+```
+
+Solo comparten los namespaces `time` y `user`.
+
 ###### iv. Dentro del contenedor cree un archivo con nombre sistemas-operativos en el directorio raíz del filesystem y luego salga del contenedor (finalice la sesión de Bash utilizando las teclas Ctrl + D o el comando exit).
+
+```bash
+root@fcc6cd3872d7:/# touch sistemas-operativos
+root@fcc6cd3872d7:/# exit
+exit
+```
 
 ###### v. Corrobore si el archivo creado existe en el directorio raíz del sistema operativo anfitrión (host). ¿Existe? ¿Por qué?
 
+```bash
+juan@juan-Lenovo-IdeaPad-S145-15AST:/$ ls
+bin                boot   dev  home  lib32  lib.usr-is-merged  media  opt   root  sbin                srv       sys        tmp  var
+bin.usr-is-merged  cdrom  etc  lib   lib64  lost+found         mnt    proc  run   sbin.usr-is-merged  swapfile  timeshift  usr
+```
+
+El archivo que creé desde el contenedor no existe en el SO host. Esto se debe a que el directorio raíz del contenedor es independiente al del SO host. Ese archivo solo existe dentro del filesystem del contenedor, no fuera.
+
 ##### d. Vuelva a iniciar el contenedor anterior utilizando el mismo comando (con una terminal interactiva). ¿Existe el archivo creado en el contenedor? ¿Por qué?
+
+```bash
+juan@juan-Lenovo-IdeaPad-S145-15AST:/$ docker run -it ubuntu /bin/bash
+root@87fce3c4d700:/# ls
+bin  boot  dev  etc  home  lib  lib64  media  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var
+root@87fce3c4d700:/#
+```
+
+Se puede ver que el archivo ya no está. Esto se debe a que esta nueva ejecución de la imagen es un contenedor nuevo, distinto al anterior, y por ende no tiene el mismo filesystem.
 
 ##### e. Obtenga el identificador del contenedor (container_id) donde se creó el archivo y utilícelo para iniciar con el comando `docker start -ia container_id` el contenedor en el cual se creó el archivo.
 
 ###### i. ¿Cómo obtuvo el container_id para para este comando?
 
+```bash
+juan@juan-Lenovo-IdeaPad-S145-15AST:~$ docker ps -a
+CONTAINER ID   IMAGE     COMMAND       CREATED              STATUS                      PORTS     NAMES
+87fce3c4d700   ubuntu    "/bin/bash"   About a minute ago   Up About a minute                     mystifying_ritchie
+fcc6cd3872d7   ubuntu    "/bin/bash"   17 minutes ago       Exited (0) 4 minutes ago              boring_hermann
+65d2a89763c5   ubuntu    "ls -l"       26 minutes ago       Exited (0) 26 minutes ago             mi-contenedor
+```
+
+El ID del contenedor donde se creó el archivo es **fcc6cd3872d7**.
+
 ###### ii. Chequee nuevamente si el archivo creado anteriormente existe. ¿Cuál es el resultado en este caso? ¿Puede encontrar el archivo creado?
+
+```bash
+juan@juan-Lenovo-IdeaPad-S145-15AST:~$ docker start -ia fcc6cd3872d7
+root@fcc6cd3872d7:/# ls
+bin  boot  dev  etc  home  lib  lib64  media  mnt  opt  proc  root  run  sbin  sistemas-operativos  srv  sys  tmp  usr  var
+root@fcc6cd3872d7:/#
+```
+
+Ahora, como iniciamos el contenedor desde el cual se creó el archivo, si lo podemos ver.
 
 ##### f. ¿Cuántos contenedores están actualmente en ejecución? ¿En qué estado se encuentra cada uno de los que se han ejecutado hasta el momento?
 
+```bash
+juan@juan-Lenovo-IdeaPad-S145-15AST:/$ docker ps -a
+CONTAINER ID   IMAGE     COMMAND       CREATED          STATUS                      PORTS     NAMES
+87fce3c4d700   ubuntu    "/bin/bash"   5 minutes ago    Exited (0) 16 seconds ago             mystifying_ritchie
+fcc6cd3872d7   ubuntu    "/bin/bash"   21 minutes ago   Up About a minute                     boring_hermann
+65d2a89763c5   ubuntu    "ls -l"       30 minutes ago   Exited (0) 30 minutes ago             mi-contenedor
+```
+
+Uno solo está en ejecución (el boring_hermann, estado Up), los otros dos están parados (exited) y no tuvieron errores (0).
+
 ##### g. Elimine todos los contenedores creados hasta el momento. Indique el o los comandos utilizados.
+
+```bash
+juan@juan-Lenovo-IdeaPad-S145-15AST:~$ docker ps -a
+CONTAINER ID   IMAGE     COMMAND       CREATED          STATUS                          PORTS     NAMES
+87fce3c4d700   ubuntu    "/bin/bash"   8 minutes ago    Exited (0) 3 minutes ago                  mystifying_ritchie
+fcc6cd3872d7   ubuntu    "/bin/bash"   24 minutes ago   Exited (0) About a minute ago             boring_hermann
+65d2a89763c5   ubuntu    "ls -l"       33 minutes ago   Exited (0) 33 minutes ago                 mi-contenedor
+juan@juan-Lenovo-IdeaPad-S145-15AST:~$ docker container prune
+WARNING! This will remove all stopped containers.
+Are you sure you want to continue? [y/N] y
+Deleted Containers:
+87fce3c4d700106b1277f9e7e1aab1b94cfc1c4fbcfb3140ad87bbca41975676
+fcc6cd3872d784a8e49e0f9bcb5d03443d54149d1ac095f427024103654e07df
+65d2a89763c5b46d84e1f1b0fa4ad46d8039ac901f09d39dc73a1b713cf570cc
+
+Total reclaimed space: 105B
+juan@juan-Lenovo-IdeaPad-S145-15AST:~$ docker ps -a
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+```
+
+Se puede usar `docker container prune` para eliminar todos los containers con estado Exited.
 
 #### 3. Creación de una imagen a partir de un contenedor. Siguiendo los pasos indicados a continuación genere una imagen de Docker a partir de un contenedor:
 
