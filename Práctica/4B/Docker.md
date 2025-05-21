@@ -319,6 +319,11 @@ Se puede usar `docker container prune` para eliminar todos los containers con es
 
 ##### a. Inicie un contenedor a partir de la imagen de Ubuntu descargada anteriormente ejecutando una consola interactiva de Bash.
 
+```bash
+juan@juan-Lenovo-IdeaPad-S145-15AST:~$ docker run --name ejercicio-3 -it ubuntu /bin/bash
+root@81365036ed93:/#
+```
+
 ##### b. Instale el servidor web [Nginx](https://nginx.org/en/) en el contenedor utilizando los siguientes comandos:
 
 ```bash
@@ -329,29 +334,209 @@ apt install -y --no-install-recommends nginx
 
 : '
 Los dos primeros comandos exportan dos variables de ambiente para que
-la instalación de una de las dependencias de nginx (el paquete tzdata
+la instalación de una de las dependencias de nginx (el paquete tzdata)
 no requiera que interactivamente se respondan preguntas sobre la
 ubicación geográfica a utilizar
 '
 ```
 
+```bash
+root@81365036ed93:/# export DEBIAN_FRONTEND=noninteractive
+root@81365036ed93:/# export TZ=America/Buenos_Aires
+root@81365036ed93:/# apt update -qq
+All packages are up to date.
+root@81365036ed93:/# apt install -y --no-install-recommends nginx
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+The following additional packages will be installed:
+  iproute2 libbpf1 libcap2-bin libelf1t64 libgssapi-krb5-2 libk5crypto3
+  libkeyutils1 libkrb5-3 libkrb5support0 libmnl0 libtirpc-common libtirpc3t64
+  libxtables12 nginx-common
+Suggested packages:
+  iproute2-doc python3:any krb5-doc krb5-user fcgiwrap nginx-doc ssl-cert
+Recommended packages:
+  libatm1 libpam-cap krb5-locales
+The following NEW packages will be installed:
+  iproute2 libbpf1 libcap2-bin libelf1t64 libgssapi-krb5-2 libk5crypto3
+  libkeyutils1 libkrb5-3 libkrb5support0 libmnl0 libtirpc-common libtirpc3t64
+  libxtables12 nginx nginx-common
+0 upgraded, 15 newly installed, 0 to remove and 0 not upgraded.
+Need to get 2684 kB of archives.
+After this operation, 7795 kB of additional disk space will be used.
+Get:1 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libelf1t64 amd64 0.190-1.1ubuntu0.1 [57.8 kB]
+Get:2 http://archive.ubuntu.com/ubuntu noble/main amd64 libbpf1 amd64 1:1.3.0-2build2 [166 kB]
+Get:3 http://archive.ubuntu.com/ubuntu noble/main amd64 libmnl0 amd64 1.0.5-2build1 [12.3 kB]
+Get:4 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libkrb5support0 amd64 1.20.1-6ubuntu2.5 [34.1 kB]
+Get:5 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libk5crypto3 amd64 1.20.1-6ubuntu2.5 [82.0 kB]
+Get:6 http://archive.ubuntu.com/ubuntu noble/main amd64 libkeyutils1 amd64 1.6.3-3build1 [9490 B]
+Get:7 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libkrb5-3 amd64 1.20.1-6ubuntu2.5 [347 kB]
+Get:8 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libgssapi-krb5-2 amd64 1.20.1-6ubuntu2.5 [143 kB]
+Get:9 http://archive.ubuntu.com/ubuntu noble/main amd64 libtirpc-common all 1.3.4+ds-1.1build1 [8094 B]
+Get:10 http://archive.ubuntu.com/ubuntu noble/main amd64 libtirpc3t64 amd64 1.3.4+ds-1.1build1 [82.6 kB]
+Get:11 http://archive.ubuntu.com/ubuntu noble/main amd64 libxtables12 amd64 1.8.10-3ubuntu2 [35.7 kB]
+Get:12 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libcap2-bin amd64 1:2.66-5ubuntu2.2 [34.2 kB]
+Get:13 http://archive.ubuntu.com/ubuntu noble/main amd64 iproute2 amd64 6.1.0-1ubuntu6 [1120 kB]
+Get:14 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 nginx-common all 1.24.0-2ubuntu7.3 [31.2 kB]
+Get:15 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 nginx amd64 1.24.0-2ubuntu7.3 [520 kB]
+Fetched 2684 kB in 3s (1057 kB/s)
+debconf: delaying package configuration, since apt-utils is not installed
+Selecting previously unselected package libelf1t64:amd64.
+(Reading database ... 4381 files and directories currently installed.)
+Preparing to unpack .../00-libelf1t64_0.190-1.1ubuntu0.1_amd64.deb ...
+Unpacking libelf1t64:amd64 (0.190-1.1ubuntu0.1) ...
+Selecting previously unselected package libbpf1:amd64.
+Preparing to unpack .../01-libbpf1_1%3a1.3.0-2build2_amd64.deb ...
+Unpacking libbpf1:amd64 (1:1.3.0-2build2) ...
+Selecting previously unselected package libmnl0:amd64.
+Preparing to unpack .../02-libmnl0_1.0.5-2build1_amd64.deb ...
+Unpacking libmnl0:amd64 (1.0.5-2build1) ...
+Selecting previously unselected package libkrb5support0:amd64.
+Preparing to unpack .../03-libkrb5support0_1.20.1-6ubuntu2.5_amd64.deb ...
+Unpacking libkrb5support0:amd64 (1.20.1-6ubuntu2.5) ...
+Selecting previously unselected package libk5crypto3:amd64.
+Preparing to unpack .../04-libk5crypto3_1.20.1-6ubuntu2.5_amd64.deb ...
+Unpacking libk5crypto3:amd64 (1.20.1-6ubuntu2.5) ...
+Selecting previously unselected package libkeyutils1:amd64.
+Preparing to unpack .../05-libkeyutils1_1.6.3-3build1_amd64.deb ...
+Unpacking libkeyutils1:amd64 (1.6.3-3build1) ...
+Selecting previously unselected package libkrb5-3:amd64.
+Preparing to unpack .../06-libkrb5-3_1.20.1-6ubuntu2.5_amd64.deb ...
+Unpacking libkrb5-3:amd64 (1.20.1-6ubuntu2.5) ...
+Selecting previously unselected package libgssapi-krb5-2:amd64.
+Preparing to unpack .../07-libgssapi-krb5-2_1.20.1-6ubuntu2.5_amd64.deb ...
+Unpacking libgssapi-krb5-2:amd64 (1.20.1-6ubuntu2.5) ...
+Selecting previously unselected package libtirpc-common.
+Preparing to unpack .../08-libtirpc-common_1.3.4+ds-1.1build1_all.deb ...
+Unpacking libtirpc-common (1.3.4+ds-1.1build1) ...
+Selecting previously unselected package libtirpc3t64:amd64.
+Preparing to unpack .../09-libtirpc3t64_1.3.4+ds-1.1build1_amd64.deb ...
+Adding 'diversion of /lib/x86_64-linux-gnu/libtirpc.so.3 to /lib/x86_64-linux-gn
+u/libtirpc.so.3.usr-is-merged by libtirpc3t64'
+Adding 'diversion of /lib/x86_64-linux-gnu/libtirpc.so.3.0.0 to /lib/x86_64-linu
+x-gnu/libtirpc.so.3.0.0.usr-is-merged by libtirpc3t64'
+Unpacking libtirpc3t64:amd64 (1.3.4+ds-1.1build1) ...
+Selecting previously unselected package libxtables12:amd64.
+Preparing to unpack .../10-libxtables12_1.8.10-3ubuntu2_amd64.deb ...
+Unpacking libxtables12:amd64 (1.8.10-3ubuntu2) ...
+Selecting previously unselected package libcap2-bin.
+Preparing to unpack .../11-libcap2-bin_1%3a2.66-5ubuntu2.2_amd64.deb ...
+Unpacking libcap2-bin (1:2.66-5ubuntu2.2) ...
+Selecting previously unselected package iproute2.
+Preparing to unpack .../12-iproute2_6.1.0-1ubuntu6_amd64.deb ...
+Unpacking iproute2 (6.1.0-1ubuntu6) ...
+Selecting previously unselected package nginx-common.
+Preparing to unpack .../13-nginx-common_1.24.0-2ubuntu7.3_all.deb ...
+Unpacking nginx-common (1.24.0-2ubuntu7.3) ...
+Selecting previously unselected package nginx.
+Preparing to unpack .../14-nginx_1.24.0-2ubuntu7.3_amd64.deb ...
+Unpacking nginx (1.24.0-2ubuntu7.3) ...
+Setting up libkeyutils1:amd64 (1.6.3-3build1) ...
+Setting up libtirpc-common (1.3.4+ds-1.1build1) ...
+Setting up libelf1t64:amd64 (0.190-1.1ubuntu0.1) ...
+Setting up libkrb5support0:amd64 (1.20.1-6ubuntu2.5) ...
+Setting up libcap2-bin (1:2.66-5ubuntu2.2) ...
+Setting up libmnl0:amd64 (1.0.5-2build1) ...
+Setting up libk5crypto3:amd64 (1.20.1-6ubuntu2.5) ...
+Setting up libxtables12:amd64 (1.8.10-3ubuntu2) ...
+Setting up libkrb5-3:amd64 (1.20.1-6ubuntu2.5) ...
+Setting up libbpf1:amd64 (1:1.3.0-2build2) ...
+Setting up libgssapi-krb5-2:amd64 (1.20.1-6ubuntu2.5) ...
+Setting up libtirpc3t64:amd64 (1.3.4+ds-1.1build1) ...
+Setting up iproute2 (6.1.0-1ubuntu6) ...
+Setting up nginx (1.24.0-2ubuntu7.3) ...
+invoke-rc.d: unknown initscript, /etc/init.d/nginx not found.
+invoke-rc.d: could not determine current runlevel
+Setting up nginx-common (1.24.0-2ubuntu7.3) ...
+Processing triggers for libc-bin (2.39-0ubuntu8.4) ...
+root@81365036ed93:/#
+```
+
 ##### c. Salga del contenedor y genere una imagen Docker a partir de éste. ¿Con qué nombre se genera si no se especifica uno?
 
+```bash
+root@81365036ed93:/# exit
+juan@juan-Lenovo-IdeaPad-S145-15AST:~$
+juan@juan-Lenovo-IdeaPad-S145-15AST:~$ docker ps -a
+CONTAINER ID   IMAGE     COMMAND       CREATED         STATUS                     PORTS     NAMES
+81365036ed93   ubuntu    "/bin/bash"   4 minutes ago   Exited (0) 6 seconds ago             ejercicio-3
+juan@juan-Lenovo-IdeaPad-S145-15AST:~$ docker commit 81365036ed93
+sha256:69d691cba053e0a3395c16c0a0393d88cb3bb3bd89bd922e2ac617068378510a
+juan@juan-Lenovo-IdeaPad-S145-15AST:~$ docker images
+REPOSITORY    TAG       IMAGE ID       CREATED         SIZE
+<none>        <none>    69d691cba053   4 seconds ago   135MB
+ubuntu        latest    a0e45e2ce6e6   3 weeks ago     78.1MB
+hello-world   latest    74cc54e27dc4   3 months ago    10.1kB
+```
+
+Con `docker commit <container-id>` puedo generar una nueva imagen. Por defecto, se genera con nombre \<none>.
+
 ##### d. Cambie el nombre de la imagen creada de manera que en la columna Repository aparezca nginx-so y en la columna Tag aparezca v1.
+
+```bash
+juan@juan-Lenovo-IdeaPad-S145-15AST:~$ docker tag 69d691cba053 nginx-so:v1
+juan@juan-Lenovo-IdeaPad-S145-15AST:~$ docker images
+REPOSITORY    TAG       IMAGE ID       CREATED         SIZE
+nginx-so      v1        69d691cba053   2 minutes ago   135MB
+ubuntu        latest    a0e45e2ce6e6   3 weeks ago     78.1MB
+hello-world   latest    74cc54e27dc4   3 months ago    10.1kB
+```
+
+Con `docker tag <image-id> <image-name:tag>` podemos cambiar el nombre y tag de una imagen.
 
 ##### e. Ejecute un contenedor a partir de la imagen nginx-so:v1 que corra el servidor web nginx atendiendo conexiones en el puerto 8080 del host, y sirviendo una página web para corroborar su correcto funcionamiento. Para esto:
 
 ###### I. En el Sistema Operativo anfitrión (host) sobre el cual se ejecuta Docker crear un directorio que se utilizará para este taller. Éste puede ser el directorio nginx-so dentro de su directorio personal o cualquier otro directorio - para los fines de este enunciado haremos referencia a éste como `/home/so/nginx-so`, por lo que en los lugares donde se mencione esta ruta usted deberá reemplazarla por la ruta absoluta al directorio que haya decidido crear en este paso.
 
+Voy a crear el directorio en la ruta `/home/juan/nginx-so`.
+
 ###### II. Dentro de ese directorio, cree un archivo llamado `index.html` que contenga el código HTML de [este gist de GitHub](https://gist.github.com/ncuesta/5b959fce1c7d2ed4e5a06e84e5a7efc8).
+
+1. `cd nginx-so/`.
+2. `touch index.html`.
+3. Copiar el código HTML del link.
+4. `xed index.html`.
+5. Pegar el código HTML.
 
 ###### III. Cree un contenedor a partir de la imagen nginx-so:v1 montando el directorio del host (`/home/so/nginx-so`) sobre el directorio `/var/www/html` del contenedor, mapeando el puerto 80 del contenedor al puerto 8080 del host, y ejecutando el servidor nginx en primer plano (para iniciar el servidor nginx en primer plano usar el comando `nginx -g 'daemon off;'`). Indique el comando utilizado.
 
+- Para montar un directorio del host a un directorio del contenedor, se usa el argumento `docker run -v dir-host:dir-contenedor`.
+- Para mapear un puerto del contenedor a un puerto del host, se usa el argumento `docker run -p puerto-host:puerto-contenedor`
+- Por lo tanto el comando que se necesita ejecutar es:
+
+```bash
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/nginx-so$ docker run -p 8080:80 -v /home/juan/nginx-so:/var/www/html nginx-so:v1 nginx -g 'daemon off;'
+
+```
+
 ##### f. Verifique que el contenedor esté ejecutándose correctamente abriendo un navegador web y visitando la URL [localhost](http://localhost:8080).
+
+![Contenedor ejecutándose correctamente](https://i.imgur.com/aRyhcDS.png)
 
 ##### g. Modifique el archivo `index.html` agregándole un párrafo con su nombre y número de alumno. ¿Es necesario reiniciar el contenedor para ver los cambios?
 
+Luego de editar el archivo HTML, al hacer F5 en http://localhost:8080, puedo ver los cambios. No hizo falta reiniciar el contenedor.
+
+Esto se debe a que usamos un bind mount:
+
+- Cuando uso el argumento `-v /home/juan/nginx-so:/var/www/html`, Docker comparte directamente el directorio de mi host con el contenedor.
+- No es una copia, sino un acceso directo: cualquier cambio en los archivos del host se refleja inmediatamente en el contenedor y viceversa.
+- Nginx sirve los archivos "en vivo" desde `/var/www/html`, que en realidad es el mismo directorio que `/home/juan/nginx-so` en mi PC.
+
 ##### h. Analice: ¿por qué es necesario que el proceso nginx se ejecute en primer plano? ¿Qué ocurre si lo ejecuta sin `-g 'daemon off;'`?
+
+```bash
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/nginx-so$ docker run -p 8080:80 -v /home/juan/nginx-so:/var/www/html nginx-so:v1 nginx
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/nginx-so$ docker ps -a
+CONTAINER ID   IMAGE         COMMAND                  CREATED          STATUS                          PORTS     NAMES
+4744a891b21a   nginx-so:v1   "nginx"                  5 seconds ago    Exited (0) 4 seconds ago                  naughty_gould
+e9dc9aad4780   nginx-so:v1   "nginx -g 'daemon of…"   11 minutes ago   Exited (0) About a minute ago             mystifying_merkle
+81365036ed93   ubuntu        "/bin/bash"              32 minutes ago   Exited (0) 27 minutes ago                 ejercicio-3
+```
+
+Al correr el contenedor sin el argumento `-g 'daemon off;'`, el contenedor se inicia pero se cierra inmediatamente después.
+
+El contenedor se cierra porque, sin el argumento mencionado, Nginx se ejecuta en segundo plano (como demonio) y el proceso principal termina inmediatamente. Docker solo mantiene el contenedor activo si su proceso principal sigue corriendo.
 
 #### 4. Creación de una imagen Docker a partir de un archivo Dockerfile. Siguiendo los pasos indicados a continuación, genere una nueva imagen a partir de los pasos descritos en un Dockerfile.
 
@@ -367,12 +552,110 @@ ubicación geográfica a utilizar
 
 ###### v. Indicar el comando que se utilizará cuando se inicie un contenedor a partir de esta imagen para ejecutar el servidor nginx en primer plano: `nginx -g 'daemon off;'`. Use la forma exec ([La documentación oficial de Docker describe las tres formas posibles para indicar el comando principal de una imagen](https://docs.docker.com/engine/reference/builder/#cmd)) para definir el comando, de manera que todas las señales que reciba el contenedor sean enviadas directamente al proceso de nginx. Ayuda: las instrucciones necesarias para definir los pasos en el Dockerfile son FROM, EXPOSE, RUN, COPY y CMD.
 
+```dockerfile
+# Comenzar en base a la imagen oficial de Ubuntu.
+FROM ubuntu
+
+# Exponer el puerto 80 del contenedor.
+EXPOSE 80
+
+# Instalar el servidor web nginx.
+RUN apt-get update && apt install -y --no-install-recommends nginx
+
+# Copiar el archivo `index.html` del mismo directorio del host al directorio `/var/www/html` de la imagen.
+COPY index.html /var/www/html/
+
+# Comando que se utilizará cuando se inicie un contenedor a partir de esta imagen para ejecutar el servidor nginx en primer plano.
+CMD ["nginx", "-g", "daemon off;"]
+```
+
 ##### b. Utilizando el Dockerfile que generó en el punto anterior construya una nueva imagen Docker guardándola localmente con el nombre nginx-so:v2.
 
-##### c. Ejecute un contenedor a partir de la nueva imagen creada con las opciones adecuadas para que pueda acceder desde su navegador web ala página a través del puerto 8090 del host. Verifique que puede visualizar correctamente la página accediendo a [localhost](http://localhost:8090).
+```bash
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/nginx-so$ ls
+Dockerfile  index.html
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/nginx-so$ docker build -t nginx-so:v2 /home/juan/nginx-so/
+[+] Building 19.1s (8/8) FINISHED                                                                                       docker:default
+ => [internal] load build definition from Dockerfile                                                                              0.0s
+ => => transferring dockerfile: 560B                                                                                              0.0s
+ => [internal] load metadata for docker.io/library/ubuntu:latest                                                                  0.0s
+ => [internal] load .dockerignore                                                                                                 0.0s
+ => => transferring context: 2B                                                                                                   0.0s
+ => [1/3] FROM docker.io/library/ubuntu:latest                                                                                    0.0s
+ => [internal] load build context                                                                                                 0.0s
+ => => transferring context: 959B                                                                                                 0.0s
+ => [2/3] RUN apt-get update && apt install -y --no-install-recommends nginx                                                     18.6s
+ => [3/3] COPY index.html /var/www/html/                                                                                          0.0s
+ => exporting to image                                                                                                            0.4s
+ => => exporting layers                                                                                                           0.3s
+ => => writing image sha256:66d51f4c95f5267041abc2392aa8169d22696372ef0ccb12d5cf811d39cf673e                                      0.0s
+ => => naming to docker.io/library/nginx-so:v2                                                                                    0.0s
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/nginx-so$
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/nginx-so$ docker images
+REPOSITORY    TAG       IMAGE ID       CREATED          SIZE
+nginx-so      v2        66d51f4c95f5   3 minutes ago    135MB
+nginx-so      v1        69d691cba053   44 minutes ago   135MB
+ubuntu        latest    a0e45e2ce6e6   3 weeks ago      78.1MB
+hello-world   latest    74cc54e27dc4   3 months ago     10.1kB
+```
+
+- Para crear una imagen a partir de un Dockerfile (que debe estar presente en el mismo directorio desde el cual se corre el comando), se usa `docker build`.
+- Para especificar su nombre y tag, se usa el argumento `-t`.
+
+##### c. Ejecute un contenedor a partir de la nueva imagen creada con las opciones adecuadas para que pueda acceder desde su navegador web a la página a través del puerto 8090 del host. Verifique que puede visualizar correctamente la página accediendo a [localhost](http://localhost:8090).
+
+```bash
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/nginx-so$ docker run -p 8090:80 --name ejercicio4 nginx-so:v2
+
+```
+
+![Contenedor v2 corriendo exitosamente en el puerto 8090](https://i.imgur.com/0t3ZbYr.png)
 
 ##### d. Modifique el archivo `index.html` del host agregando un párrafo con la fecha actual y recargue la página en su navegador web. ¿Se ven reflejados los cambios que hizo en el archivo? ¿Por qué?
 
+Al modificar el archivo HTML y hacer F5 en http://localhost:8090, no se ven reflejados los cambios. Esto se debe a que el contenedor está usando la versión de `index.html` de la imagen que se creó, y no del host.
+
 ##### e. Termine el contenedor iniciado antes y cree uno nuevo utilizando el mismo comando. Recargue la página en su navegador web. ¿Se ven ahora reflejados los cambios realizados en el archivo HTML? ¿Por qué?
 
+```bash
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/nginx-so$ docker run -p 8090:80 --name ejercicio4-e nginx-so:v2
+
+```
+
+Nuevamente, no se ven reflejados los cambios. La razón es la misma, al iniciar un nuevo contenedor, se está usando otra vez el archivo HTML de la imagen original que se creó con la versión anterior de ese archivo, y no del host.
+
 ##### f. Vuelva a construir una imagen Docker a partir del Dockerfile creado anteriormente, pero esta vez dándole el nombre nginx-so:v3. Cree un contenedor a partir de ésta y acceda a la página en su navegador web. ¿Se ven reflejados los cambios realizados en el archivo HTML? ¿Por qué?
+
+```bash
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/nginx-so$ ls
+Dockerfile  index.html
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/nginx-so$ docker build -t nginx-so:v3 /home/juan/nginx-so/
+[+] Building 0.1s (8/8) FINISHED                                                                                        docker:default
+ => [internal] load build definition from Dockerfile                                                                              0.0s
+ => => transferring dockerfile: 560B                                                                                              0.0s
+ => [internal] load metadata for docker.io/library/ubuntu:latest                                                                  0.0s
+ => [internal] load .dockerignore                                                                                                 0.0s
+ => => transferring context: 2B                                                                                                   0.0s
+ => [internal] load build context                                                                                                 0.0s
+ => => transferring context: 995B                                                                                                 0.0s
+ => [1/3] FROM docker.io/library/ubuntu:latest                                                                                    0.0s
+ => CACHED [2/3] RUN apt-get update && apt install -y --no-install-recommends nginx                                               0.0s
+ => [3/3] COPY index.html /var/www/html/                                                                                          0.0s
+ => exporting to image                                                                                                            0.0s
+ => => exporting layers                                                                                                           0.0s
+ => => writing image sha256:4446b5893a77e49fbb415205e83d7c0c296e93bc3d4a084bfdccea0229c9fe1b                                      0.0s
+ => => naming to docker.io/library/nginx-so:v3                                                                                    0.0s
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/nginx-so$ docker images
+REPOSITORY    TAG       IMAGE ID       CREATED          SIZE
+nginx-so      v3        4446b5893a77   25 seconds ago   135MB
+nginx-so      v2        66d51f4c95f5   14 minutes ago   135MB
+nginx-so      v1        69d691cba053   55 minutes ago   135MB
+ubuntu        latest    a0e45e2ce6e6   3 weeks ago      78.1MB
+hello-world   latest    74cc54e27dc4   3 months ago     10.1kB
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/nginx-so$ docker run -p 8090:80 --name ejercicio4-f nginx-so:v3
+
+```
+
+![Contenedor v3 corriendo exitosamente en el puerto 8090](https://i.imgur.com/3sPGgjj.png)
+
+Esta vez si se ven reflejados los cambios, ya que creamos una imagen nueva la cual fue a buscar el archivo `index.html` en nuestra PC, y como es la versión más actual, sí posee el párrafo con la fecha.
