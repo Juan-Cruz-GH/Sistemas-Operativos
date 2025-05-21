@@ -6,9 +6,25 @@
 
 #### 1. Utilizando sus palabras describa, ¿qué es docker compose?
 
+Docker Compose es una herramienta que facilita el despliegue de aplicaciones que están compuestas por múltiples contenedores. Este conjunto de contenedores se comunican entre sí para brindar la funcionalidad objetivo.
+
+Consideramos entonces a docker compose como el conjunto de la herramienta (el binario) y los archivos de configuración llamados “archivo compose” o “compose file” que definen los recursos deseados.
+
+Debido a esta relación, Docker Compose requiere que Docker esté instalado y configurado para poder funcionar correctamente.
+
 #### 2. ¿Qué es el archivo compose y cual es su función? ¿Cuál es el "lenguaje" del archivo?
 
-#### 3. ¿Cuáles son las versiones existentes del archivo `docker-compose.yaml` existentes y qué características aporta cada una? ¿Son compatibles entre sí? ¿Por qué?
+El archivo Docker Compose (`docker-compose.yml`) es un archivo YAML que define y orquesta aplicaciones multi-contenedor de Docker.
+
+A cada contenedor definido en este archivo se lo denomina **servicio**.
+
+Sus funciones principales son:
+
+- **Declarar servicios**: Especificar qué contenedores (web, base de datos, API, etc) forman la aplicación.
+- **Configurar dependencias**: Indicar el orden de inicio y comunicación entre ellos.
+- **Gestionar recursos**: Mapear puertos, volúmenes, redes y variables de entorno para cada servicio.
+
+#### 3. ¿Cuáles son las versiones existentes del archivo `docker-compose.yaml` y qué características aporta cada una? ¿Son compatibles entre sí? ¿Por qué?
 
 #### 4. Investigue y describa la estructura de un archivo compose. Desarrolle al menos sobre los siguientes bloques indicando para qué se usan:
 
