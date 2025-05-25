@@ -195,7 +195,7 @@ En Docker Compose se pueden usar varios tipos de volúmenes para persistir datos
   - Son volúmenes administrados por Docker, almacenados en `/var/lib/docker/volumes/`.
   - Ideales para persistir datos de forma eficiente y segura.
   - Docker gestiona su ciclo de vida.
-  - Se le pueden especificar drivers (como local, nfs, etc.) o opciones como driver_opts.
+  - Se le pueden especificar drivers (como local, nfs, etc.) u opciones como driver_opts.
   - Declaración:
 
   ```yaml
@@ -291,8 +291,7 @@ En Docker Compose se pueden usar varios tipos de volúmenes para persistir datos
 #### En la actualidad existen 2 versiones del binario docker-compose. Vamos a utilizar la versión 2. Para instalar la versión 2.18.1, vamos a descargarla y ubicarla en el directorio `/usr/local/bin/docker-compose`, para que de esta manera quede accesible mediante el PATH de nuestra CLI:
 
 ```bash
-~$ sudo curl -SL
-https://github.com/docker/compose/releases/download/v2.18.1/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+~$ sudo curl -SL https://github.com/docker/compose/releases/download/v2.18.1/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
 ```
 
 #### Una vez descargado, le damos permiso de ejecución:
@@ -304,7 +303,7 @@ https://github.com/docker/compose/releases/download/v2.18.1/docker-compose-linux
 #### De esta manera ya tendremos docker-compose disponible. Para asegurarnos que esté instalado correctamente, verificamos la versión instalada corriendo desde la consola:
 
 ```bash
-~$ docker compose --version
+~$ docker-compose --version
 Docker Compose version v2.18.1
 ```
 
@@ -354,25 +353,64 @@ networks:
 
 ##### ¿Cuántos contenedores se instancian?
 
+Se instancian **dos contenedores**, `db` y `wordpress`.
+
 ##### ¿Por qué no se necesitan Dockerfiles?
+
+No se necesitan dockerfiles porque los dos contenedores que se instancian se generan a partir de imagenes públicas preexistentes que se especifican en `image` y que Docker Compose descarga de Docker Hub.
 
 ##### ¿Por qué el servicio identificado como "wordpress" tiene la siguiente línea? `depends_on: - db`
 
+El contenedor `wordpress` posee la línea `depends_on: - db` porque la página wordpress requiere que la db se haya iniciado correctamente antes de poder ejecutarse.
+
 ##### ¿Qué volúmenes y de qué tipo tendrá asociado cada contenedor?
+
+- El contenedor `db` tiene asociado un único volumen `db_data:/var/lib/mysql` que es de tipo Named Volume.
+- El contenedor `wordpress` tiene asociados dos volúmenes:
+  - `${PWD}:/data` de tipo Bind Mount.
+  - `wordpress_data:/var/www/html` de tipo Named Volume.
 
 ##### ¿Por que uso el volumen nombrado `db_data:/var/lib/mysql` para el servicio db en lugar de dejar que se instancie un volumen anónimo con el contenedor?
 
+Se usa un volúmen nombrado para el contenedor `db`, en lugar de uno anónimo, para lograr persistencia de datos (los datos de la DB no se pierden si `db` se elimina o re-crea) y facil gestión (Docker gestiona el volumen automáticamente por sí solo).
+
 ##### ¿Qué genera la línea `${PWD}:/data` en la definición de wordpress?
+
+La línea `${PWD}:/data` genera un Bind Mount, es decir que mapea el directorio actual de la máquina local al directorio `/data` dentro del contenedor de wordpress.
 
 ##### ¿Qué representa la información que estoy definiendo en el bloque environment de cada servicio? ¿Cómo se "mapean" al instanciar los contenedores?
 
+El bloque `environment` es donde se definen las variables de entorno que usará cada contenedor, con el formato clave:valor.
+
+- En `db`, las variables MYSQL_ROOT_PASSWORD, MYSQL_DATABASE, etc, configuran MySQL al iniciar (por ejemplo, creando la base de datos y el usuario).
+- En `wordpress`, las variables WORDPRESS_DB_HOST y WORDPRESS_DB_NAME, etc, son usadas por WordPress para conectarse a la base de datos.
+
+Se mapean internamente como variables de entorno del SO dentro del contenedor. Por ejemplo, dentro del contenedor `wordpress`, se puede hacer echo $WORDPRESS_DB_NAME y se verá el valor wordpress.
+
 ##### ¿Qué sucede si cambio los valores de alguna de las variables definidas en bloque "environment" en solo uno de los contenedores y hago que sean diferentes? (Por ej: cambio SOLO en la definición de wordpress la variable WORDPRESS_DB_NAME)
+
+Si cambio los valores de alguna de las variables de entorno del bloque `environment` en **solo uno de los contenedores**, la aplicación wordpress no podrá conectarse a la base de datos MySQL porque las credenciales no matchearian.
 
 ##### ¿Cómo sabe comunicarse el contenedor "wordpress" con el contenedor "db" si nunca doy información de direccionamiento?
 
+El contenedor `wordpress` puede comunicarse con el contenedor `db` gracias a que **ambos están en la misma red Docker definida como wordpress** en `networks: wordpress:`.
+
+En Docker, los contenedores en la misma red pueden comunicarse entre sí usando el nombre del servicio como si fuera el hostname. En este caso, `db` es el nombre del servicio, así que `wordpress` puede hacer una conexión a `db:3306` (puerto por defecto de MySQL) sin necesidad de una IP ni configuración adicional.
+
 ##### ¿Qué puertos expone cada contenedor según su Dockerfile? (pista: navegue [este sitio](https://hub.docker.com/_/wordpress) y [este otro](https://hub.docker.com/_/mysql)) para acceder a los Dockerfiles que generaron esas imágenes y responder esta pregunta.
 
+- El contenedor `db` por defecto expone el puerto 3306.
+- El contenedor `wordpress` por defecto expone el puerto 80.
+
 ##### ¿Qué servicio se "publica" para ser accedido desde el exterior y en qué puerto? ¿Es necesario publicar el otro servicio? ¿Por qué?
+
+El servicio que se publica para ser accedido desde el exterior es `wordpress`, mediante el puerto 8000 del host, que se mapea al puerto 80 del contenedor. Esto permite acceder al sitio WordPress desde un navegador vía http://localhost:8000.
+
+No es necesario publicar el servicio `db` ya que:
+
+1. Solo lo necesita `wordpress` y nadie más.
+2. Ambos servicios están en la misma red definida (wordpress), así que pueden comunicarse directamente usando el nombre del servicio (db) como hostname.
+3. Exponer la DB al exterior sería un riesgo de seguridad innecesario si no se requiere acceso externo (por ejemplo, desde una herramienta de administración de DBs).
 
 #### Instanciando
 
