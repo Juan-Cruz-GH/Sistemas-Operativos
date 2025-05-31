@@ -1332,24 +1332,155 @@ Podemos virtualizar por muchas razones:
 
 <h1 align="center">Clase 10 - 28 de mayo, 2025</h1>
 
-##
+## Multiprocesadores
+
+### Origen
+
+- Desde su inicio, la industria de las computadoras se orientó fundamentalmente a buscar un poder de cómputo cada vez mayor.
+- Esto se debe a que las necesidades actuales demandan cada vez mayor poder de cómputo (física, astronomía, biología calculo de modelos, IA).
+- En el pasado, la solución era siempre **hacer que el reloj operara a mayor velocidad**.
+- En la actualidad, sin embargo, lograr mayor velocidad es mucho más complejo debido a varias limitaciones:
+  - Ninguna señal eléctrica se puede propagar más rápido que la velocidad de la luz.
+  - Problemas de disipación de calor (muchos transistores juntos en poco espacio).
+  - Problemas de consumo eléctrico.
+- La solución al problema es el **cómputo en paralelo y/o distribuido**: contar con varias CPU que operen a velocidad "normal" y que en conjunto provean la potencia de cómputo necesaria.
+
+### Esquemas
+
+#### Motivación
+
+- Si tenemos que resolver un problema en una única CPU, el esquema de trabajo es sencillo.
+- Si tenemos varios problemas y varias CPU, a priori podríamos asignar estáticamente una tarea por CPU, pero esto no es lo más eficiente.
+  - Debería existir un coordinador que se encargue de repartir las tareas.
+- Al existir múltiples CPU, la complejidad aumenta en lo que refiere a distribución de tareas, pasaje de mensajes y acceso a memoria.
+
+#### Multiprocesadores con Memoria Compartida
+
+- La comunicación entre las CPU es a través de la **memoria compartida**.
+- Cada CPU tiene el mismo acceso que otras a la memoria física a través de un **único BUS físico**.
+- Para acceder a una palabra de memoria por lo general cada CPU requiere de **2 a 10 nanosegundos**.
+- Existe un **único espacio lógico de direcciones para todos los procesos**.
+- Gráficamente:
+
+![Multiprocesadores con Memoria Compartida](https://i.imgur.com/njvwce6.png)
+
+#### Multicomputadora con memoria independiente / pasaje de mensajes
+
+- Varios pares **(CPU, memoria)** se conectan a una interconexión de alta velocidad pasando mensajes.
+- Cada CPU tiene su propia **memoria local y privada**, la cual solo puede ser utilizada directamente por esa CPU.
+- El retardo del paso de mensajes entre CPUs es de entre **10 a 50 microsegundos**.
+- Gráficamente:
+
+![Multicomputadora con memoria independiente / pasaje de mensajes](https://i.imgur.com/iZ7kW7U.jpeg)
+
+#### Sistemas Distribuidos
+
+- Conecta sistemas de cómputo completos a través de una red.
+- Cada sistema de cómputo es una computadora completa y se llama **nodo**.
+- Cada nodo tiene su propia memoria, y se comunican mediante el pasaje de mensajes.
+- El retardo del pasaje de mensajes es de entre **10 a 100 milisegundos**.
+- Provee heterogeneidad de sistemas y hardware.
+
+![Sistemas Distribuidos](https://i.imgur.com/mUY3bzm.png)
+
+### Chips Multinúcleo
+
+- A medida que los transistores se hacen más pequeños, se pueden incorporar más en un chip. Esto permite:
+  - Aumentar la memoria caché (aunque con beneficios limitados en la tasa de aciertos).
+  - Aumentar la velocidad del clock (pero sigue habiendo un solo hilo de ejecución).
+  - Agregar múltiples núcleos en el chip, lo que permite paralelismo al compartir caché y memoria.
+- Para aprovechar estas mejoras, el **software debe diseñarse considerando las características del hardware**.
+
+### Tipos de SO Multiprocesador
+
+#### Responsabilidades del SO
+
+- Además de sus funciones habituales (manejo de system calls, memoria, E/S), en un sistema multiprocesador el SO debe encargarse de:
+  - **Sincronización de procesos**: evitar condiciones de carrera.
+  - **Administración de recursos compartidos**: asegurar consistencia.
+  - **Planificación de CPU**: distribuir eficientemente la carga entre los núcleos.
+- Estas funciones se ven afectadas por la complejidad del paralelismo, por lo que es necesario abordar los problemas específicos que surgen en este contexto.
+- Es por esto que el hardware multiprocesador puede ser manejado por los SO de diversas formas:
+
+#### Cada CPU con su SO (modelo poco utilizado)
+
+- Cada CPU tiene:
+  - Su propia copia de procesos.
+  - Su parte de la memoria.
+  - Su propia caché de disco.
+- Las CPUs funcionan de forma independiente, compartiendo solo el código del sistema operativo.
+- **Desventajas**:
+  - Los procesos están atados a una única CPU.
+  - No se pueden compartir páginas de memoria.
+  - Uso ineficiente de la memoria.
+  - Inconsistencia entre cachés de disco.
+  - Desbalance de carga entre CPUs.
+- Este modelo prácticamente no se usa en la práctica moderna debido a su rigidez y desperdicio de recursos.
+
+#### Maestro - Esclavo
+
+- Hay una sola copia del SO, manejada por una CPU maestra.
+- Todas las system calls y decisiones de planificación las maneja esta CPU.
+- Las demás CPUs ejecutan procesos, pero consultan al maestro para nuevas asignaciones.
+- **Ventajas**:
+  - Memoria compartida y asignación de páginas dinámica.
+  - Única cola de planificación, lo que facilita el control.
+- **Problemas**:
+  - Con muchas CPUs, el maestro se convierte en un cuello de botella.
+  - Si, por ejemplo, manejar syscalls toma 10% del tiempo de CPU, entonces con 10 CPUs el maestro está totalmente ocupado. Con 11, ya se sobrecarga.
+- Es más eficiente que el modelo anterior, pero no escala bien.
+
+#### SMP - Multiprocesadores Simétricos
+
+- Hay una única copia del SO, pero cualquier CPU puede ejecutarla.
+- Cada CPU puede ejecutar syscalls, acceder a estructuras del SO y planificar procesos.
+- **Ventajas**:
+  - No hay CPU maestra → sin cuellos de botella.
+  - Balance de carga natural.
+  - Eficiente en el uso de memoria y recursos.
+- **Problemas**:
+  - Puede haber conflictos si dos CPUs acceden a la misma estructura crítica del SO.
+  - Riesgo de que dos CPUs seleccionen el mismo proceso o la misma página de memoria libre.
+- **Soluciones**:
+  - **Lock global del SO**: toda la ejecución del SO se vuelve una sección crítica.
+    - Simula el modelo maestro-esclavo.
+    - Muy ineficiente, ya que sólo una CPU puede ejecutar código del SO a la vez.
+  - **Locks por estructura crítica**:
+    - Se colocan mutex independientes en cada estructura del SO (colas, tablas, etc.).
+    - Mejora el rendimiento, permite paralelismo real.
+    - Desafíos:
+      - Difícil identificar todas las secciones críticas.
+      - Algunas estructuras pueden estar en más de una sección crítica → riesgo de deadlocks.
+- El modelo **SMP con locks por estructura crítica** es el enfoque más eficiente y escalable en sistemas modernos. Permite el uso simultáneo de múltiples CPUs sin necesidad de una CPU central que coordine todo, aunque exige un diseño cuidadoso para evitar bloqueos y errores de sincronización.
+
+### Sincronización de Multiprocesadores
+
+- Es necesario que las CPU de un multiprocesador se encuentren sincronizadas (acceso a regiones críticas, estructuras, etc.).
+- En entornos uniprocesador si un proceso realiza una syscall que requiera acceder a cierta tabla crítica del kernel, el código del kernel sólo tiene que deshabilitar las interrupciones antes de tocar la tabla.
+- En sistemas multiprocesadores, sin embargo, se deshabilitan las interrupciones de una CPU, pero otra CPU podría generarlas...
+- Surge la necesidad de **contar con un protocolo de mutex apropiado para garantizar la exclusión mutua**.
+- Una posibilidad para garantizar la exclusión mutua es el uso de **TSL (Test and Set Lock)**:
+  - Lee la palabra de memoria y la almacena en un registro.
+  - Al mismo tiempo escribe un 1 en la memoria para hacer el lock (2 accesos al BUS).
+  - Cuando termina libera (escribe 0).
+  - En uniprocesadores esta implementación es correcta.
+  - El problema surge en entornos multiprocesadores: **la operación no es indivisible**.
+  - ![Problema de TSL](https://i.imgur.com/yRqdl8H.png)
+  - Ambas CPU obtuvieron un 0 de la instrucción TSL, por lo que ambas tienen acceso a la sección crítica y se rompe el mutex.
+- La solución al problema anterior, es que en multiprocesadores la instrucción **TSL** bloquee el acceso al BUS:
+  - Se necesita soporte de hardware para poder implementarlo.
+  - Genera carga en la memoria y el BUS, ya que la CPU que solicita debe mantener el bloqueo y las otras CPU deben esperar a la liberación del bloqueo.
+  - No es lo más eficiente.
+- **Existen otras soluciones más eficientes, pero se debe tener soporte del hardware**.
+
+### Planificación de Multiprocesadores
+
+## Multicomputadoras
+
+## Sistemas Distribuidos
 
 ---
 
 <h1 align="center">Clase 11 - 4 de junio, 2025</h1>
 
 ##
-
----
-
-<h1 align="center">Clase 12 - 11 de junio, 2025</h1>
-
-##
-
----
-
-<h1 align="center">Clase 13 - 18 de junio, 2025</h1>
-
-##
-
----
