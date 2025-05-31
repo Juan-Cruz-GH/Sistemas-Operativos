@@ -261,15 +261,99 @@ Los compiladores modernos ofrecen varias medidas de seguridad para evitar el buf
 
 #### Nota: Puede ser de ayuda ver el código assembler generado al compilar (`01-stack-overflow-ret.s`) o utilizar `gdb` para depurar el programa pero no es obligatorio.
 
-#### 1. Compilar usando el makefile provisto el ejemplo `01-stack-overflow-ret.c` provisto en el repositorio de la cátedra.
+#### 1. Usando el makefile provisto, compilar el ejemplo `01-stack-overflow-ret.c` provisto en el repositorio de la cátedra.
 
-#### 2. Configurar setuid en el programa para que al ejecutarlo, se ejecute como usuario root.
+```sh
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/Downloads/codigo-para-practicas/practica5$ make
+cc -save-temps -g -fno-stack-protector -z execstack -no-pie -fcf-protection=none -O0    00-stack-overflow.c   -o 00-stack-overflow
+00-stack-overflow.c: In function ‘login’:
+00-stack-overflow.c:19:5: warning: implicit declaration of function ‘gets’; did you mean ‘fgets’? [-Wimplicit-function-declaration]
+   19 |     gets(password);             // Vulnerable function reads without bounds
+      |     ^~~~
+      |     fgets
+/usr/bin/ld: 00-stack-overflow.o: in function `login':
+/home/juan/Downloads/codigo-para-practicas/practica5/00-stack-overflow.c:19:(.text+0x6d): warning: the `gets' function is dangerous and should not be used.
+cc -save-temps -g -fno-stack-protector -z execstack -no-pie -fcf-protection=none -O0    01-stack-overflow-ret.c   -o 01-stack-overflow-ret
+/usr/bin/ld: 01-stack-overflow-ret.o: in function `login':
+/home/juan/Downloads/codigo-para-practicas/practica5/01-stack-overflow-ret.c:33:(.text+0x11a): warning: the `gets' function is dangerous and should not be used.
+```
+
+#### 2. Configurar `setuid` en el programa para que al ejecutarlo, se ejecute como usuario root.
+
+```sh
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/Downloads/codigo-para-practicas/practica5$ sudo chown root:root 01-stack-overflow-ret
+[sudo] password for juan:
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/Downloads/codigo-para-practicas/practica5$ sudo chmod u+s 01-stack-overflow-ret
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/Downloads/codigo-para-practicas/practica5$ ls -l 01-stack-overflow-ret
+-rwsrwxr-x 1 root root 18472 May 31 18:54 01-stack-overflow-ret
+```
 
 #### 3. Verificar si tiene ASLR activado en el sistema. Si no está, actívelo.
 
+```sh
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/Downloads/codigo-para-practicas/practica5$ cat /proc/sys/kernel/randomize_va_space
+2
+```
+
+Esto indica que tengo activado el ASLR en modo **aleatorización completa**.
+
 #### 4. Ejecute `01-stack-overflow-ret` al menos 2 veces para verificar que la dirección de memoria de `privileged_fn()` cambia.
 
-#### 5. Apague ASLR y repita el punto 3 para verificar que esta vez el proceso siempre retorna la misma dirección de memoria para `privileged_fn()`.
+```sh
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/Downloads/codigo-para-practicas/practica5$ ./01-stack-overflow-ret
+privileged_fn: 0x4011b6
+Write password: a
+Access denied
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/Downloads/codigo-para-practicas/practica5$ ./01-stack-overflow-ret
+privileged_fn: 0x4011b6
+Write password: a
+Access denied
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/Downloads/codigo-para-practicas/practica5$ ./01-stack-overflow-ret
+privileged_fn: 0x4011b6
+Write password: a
+Access denied
+```
+
+La dirección no cambia, a pesar de que tengo ASLR activado. Esto se debe a que el Makefile está compilando los programas con la flag `-no-pie`. Entonces, modifico el Makefile para que active esta característica, usando `-fPIE -pie`.
+
+```sh
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/Downloads/codigo-para-practicas/practica5$ ./01-stack-overflow-ret
+privileged_fn: 0x57b7cd84e1c9
+Write password: a
+Access denied
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/Downloads/codigo-para-practicas/practica5$ ./01-stack-overflow-ret
+privileged_fn: 0x5e8906a681c9
+Write password: a
+Access denied
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/Downloads/codigo-para-practicas/practica5$ ./01-stack-overflow-ret
+privileged_fn: 0x5eaa470201c9
+Write password: a
+Access denied
+```
+
+Ahora las direcciones están correctamente randomizadas.
+
+#### 5. Apague ASLR y repita el punto 4 para verificar que esta vez el proceso siempre retorna la misma dirección de memoria para `privileged_fn()`.
+
+```sh
+root@juan-Lenovo-IdeaPad-S145-15AST:/home/juan/Downloads/codigo-para-practicas/practica5# echo 0 > /proc/sys/kernel/randomize_va_space
+root@juan-Lenovo-IdeaPad-S145-15AST:/home/juan/Downloads/codigo-para-practicas/practica5# cat /proc/sys/kernel/randomize_va_space
+0
+root@juan-Lenovo-IdeaPad-S145-15AST:/home/juan/Downloads/codigo-para-practicas/practica5# ./01-stack-overflow-ret
+privileged_fn: 0x5555555551c9
+Write password: a
+Access denied
+root@juan-Lenovo-IdeaPad-S145-15AST:/home/juan/Downloads/codigo-para-practicas/practica5# ./01-stack-overflow-ret
+privileged_fn: 0x5555555551c9
+Write password: a
+Access denied
+root@juan-Lenovo-IdeaPad-S145-15AST:/home/juan/Downloads/codigo-para-practicas/practica5# ./01-stack-overflow-ret
+privileged_fn: 0x5555555551c9
+Write password: a
+Access denied
+```
+
+Ahora el proceso siempre retorna la misma dirección.
 
 #### 6. Suponiendo que el compilador no agregó ningún padding en el stack tenemos los siguientes datos:
 
