@@ -1475,9 +1475,130 @@ Podemos virtualizar por muchas razones:
 
 ### Planificación de Multiprocesadores
 
+#### Qué se planifica?
+
+Lo que se va a planificar es:
+
+- En un uniprocesador → qué hilo o proceso se selecciona.
+- En un multiprocesador → qué hilo o proceso se selecciona, y en qué CPU se va a ejecutar.
+- Esto provoca una complejidad adicional con los hilos que trabajan en conjunto:
+  - Si son ULT, el planificador los planifica a nivel de proceso.
+  - Si son KLT, es posible tomar decisiones sobre su planificación.
+
+#### Planificación de hilos independientes
+
+- Esta situación se da generalmente en ambientes de tiempo compartido.
+- Muchos usuarios ejecutando tareas que **generalmente no tienen relación entre sí**.
+- El esquema más sencillo para planificarlos es tener una única cola de listos para todos los hilos.
+- Podríamos tener varias... Una para cada prioridad.
+- Aprovechamiento de la Caché:
+  - Un hilo que se ejecuta en una CPU donde ya se ha ejecutado, tendrá mayor posibilidad de que sus datos aún sigan en la caché de dicha CPU. Planificación por afinidad (Vaswaniy Zahorjan, 1991).
+  - Se utiliza el algoritmo de Planificación de 2 niveles:
+    - Cuando se crea un hilo, se asigna a una CPU.
+    - Cada CPU tiene su propia colección de hilos y los planifica por separado.
+    - Si queda una CPU ociosa, se reparten los hilos.
+    - Minimiza la contención de las estructuras de datos asociadas para la planificación, ya que no hay solo una (una o mas cola de listos por cpu).
+
+#### Planificación de hilos que trabajan en conjunto
+
+- Se planifican en conjunto (en varias CPUs).
+- Mejora en trabajos en paralelo.
+- El grupo se planifica si hay CPUs libres para cada hilo del grupo. Si no las hay, el grupo espera.
+- No hay multiprogramación por CPU (cada CPU ejecuta solo 1 hilo), baja la productividad.
+- Se podrían multiprogramar las CPU, pero podría ocurrir que los hilos no se ejecuten sincrónicamente, ya que se planifican independientemente.
+- Supongamos una situación de 2 hilos A0 y A1 que se ejecutan intercambiando mensajes compartiendo CPU con los hilos de un proceso B.
+  - Como A0 se ejecuta en un intervalo distinto que A1 ocurre que el lapso de ejecución de A es de 200 mseg, cuando podría haber sido de 100 si se hubieran ejecutado en el mismo intervalo.
+- Planificación por pandillas (una solución al problema anterior):
+  - Los hilos relacionados se toman como una **pandilla**.
+  - Todos los miembros de una pandilla se ejecutan simultáneamente en distintas CPUs multiprogramadas.
+  - Todos los miembros de la pandilla inician y terminan sus intervalos en conjunto.
+  - Ejemplo: Supongamos un multiprocesador con 6 CPU utilizadas por 5 procesos (A..E) y un total de 24 hilos.
+
 ## Multicomputadoras
 
+### Concepto
+
+- PCs con una interfaz de red de alto rendimiento que generalmente carecen de GPU, sonido y en algunos casos disco.
+- También conocidas como clusters de computadoras.
+- Son CPUs con acoplamiento fuerte.
+- No se comparte memoria, ya que cada CPU tiene la suya.
+- Suelen usar redes de conexión muy rápidas.
+- Poseen mucha CPU, memoria y placas de interconexión redundantes.
+
+### Software de comunicación a nivel de usuario
+
+- Para comunicarse, los procesos en distintas CPUs en una multicomputadora se envían mensajes entre sí.
+- Para enviar estos mensajes, usan `send` y `receive` con y sin bloqueo:
+  - El SO provee interfaces a los procesos de usuario para realizar la comunicación.
+  - **Envío con bloqueo (síncronas)**: la CPU queda inactiva durante la transmisión del mensaje.
+  - **Envío sin bloqueo con copia (asincrónicas)**: se desperdicia el tiempo de la CPU por la copia adicional.
+  - **Envío sin bloqueo con interrupción**: dificulta la programación.
+- Otra alternativa es usar RPC (Remote Procedure Call) para lograr mayor abstracción:
+  - Permite invocar a procedimientos que se ejecutan en otra CPU.
+  - El proceso en una máquina invoca al procedimiento remoto y se bloquea hasta que llegue la respuesta.
+  - La comunicación es transparente al programador.
+
+### Planificación
+
+- Cada nodo tiene su propio conjunto de procesos.
+- Un nodo no toma procesos de otros para ejecutarlos, esto sería bastante costoso.
+- Es importante la asignación de procesos a los nodos → Balanceo de carga.
+- Se puede aplicar el concepto de planificación por pandillas → Sincronización entre los nodos en cada inicio de una ranura de tiempo.
+
+### Balanceo de carga
+
+#### Método del grafo
+
+- Se representa al sistema como un **grafo**.
+- Cada nodo es un proceso, y la comunicación entre ellos se representa a través de una **arista**.
+- Se debe particionar el grafo en **tantos subgrafos como nodos se tengan**, teniendo en cuenta:
+  - Requerimientos totales de CPU.
+  - Requerimientos totales de memoria.
+  - Minimizar la cantidad de aristas entre nodos de distintos subgrafos (tráfico de red).
+  - Buscar clusters con acoplamiento fuerte.
+- Ejemplo:
+
+  - Tenemos 9 procesos, 3 nodos, y sabemos el costo de comunicación entre cada proceso.
+
+  ![Ejemplo balanceo de carga](https://i.imgur.com/a1iAyTr.png)
+
+  - El tráfico de la red, entonces, es la suma de los pesos entre enlaces de 2 nodos distintos. En el ejemplo de la izquierda es **30**, mientras que en de la derecha es **28**.
+
+#### Método alternativo
+
+- Una alternativa al grafo es usar algoritmos distribuidos.
+- El proceso se ejecuta en el nodo que lo creo al menos que el mismo este sobrecargado → muchos procesos, trashing, etc.
+- El nodo sale a buscar un nodo no sobrecargado para "pasarle" el proceso.
+- Problemas con sobrecarga del enlace si todos los nodos se encuentran sobrecargados → mucho pasaje de mensajes.
+- Es posible también que un nodo con poca carga informe la situación.
+
 ## Sistemas Distribuidos
+
+### Definiciones
+
+- **Tanenbaum** define a un sistema distribuido de la siguiente forma:
+
+> A distributed system is a collection of independent computers that appears to its users as a single coherent system.
+
+- **Colouris**, por otro lado, usa una definición distinta:
+
+> A distributed system is one in which components located at networked computers communicate and coordinate their actions only by passing messages.
+
+### Concepto
+
+- Son similares a las multicomputadoras, ya que cada nodo tiene su propia memoria privada.
+- Hay menor acoplamiento que en las multicomputadoras, porque cada nodo se puede hallar en cualquier parte del mundo.
+- Cada nodo es una PC completa, incluyendo sus dispositivos.
+- Característica clave: **Cada nodo puede ejecutar un SO y hardware distinto, incluyendo su propio filesystem → Heterogeneidad**.
+- Debido a esta heterogeneidad, los SD suelen usar un **middleware** que actúa como una capa de software por encima del SO que permite una uniformidad entre los distintos SOs.
+
+### Middleware
+
+- Capa de Software fundamental en un Sistema Distribuido.
+- Provee una interfaz común a todos los procesos.
+- Soluciona los problemas de heterogeneidad.
+- Provee servicios a las capas superiores.
+- Provee estructuras de datos y operaciones que permiten a los procesos y usuarios inter-operar,de manera consistente, entre máquinas remotas.
 
 ---
 
