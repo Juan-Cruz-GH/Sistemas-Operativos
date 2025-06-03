@@ -559,19 +559,45 @@ Por ende debería estar habilitado KASLR.
 
 - Controlan el acceso a la red de los procesos asociados a esa unidad.
 - Definen reglas de filtrado de direcciones IP para el tráfico de red de la unidad. Esto se hace a nivel del kernel de Linux, utilizando los cgroups y las capacidades de filtrado de IP.
-- **IPAddressAllow**: Si la dirección IP que se está verificando coincide con una entrada en la lista IPAddressAllow=, se permite el acceso.
-- **IPAddressDeny**: Si la dirección IP que se está verificando coincide con una entrada en la lista IPAddressDeny=, se deniega el acceso.
+- **IPAddressAllow=**: Si la dirección IP que se está verificando coincide con una entrada en la lista IPAddressAllow=, se permite el acceso.
+- **IPAddressDeny=**: Si la dirección IP que se está verificando coincide con una entrada en la lista IPAddressDeny=, se deniega el acceso.
 - Si la dirección IP no coincide con ninguna de las reglas anteriores, se permite el acceso.
 
 ##### b. User y Group
 
+- Se usan para especificar bajo qué usuario y grupo se ejecutará el proceso principal del servicio.
+- **User=**: Define el usuario que ejecutará el servicio. Esto es crucial para la seguridad, ya que el servicio operará con los privilegios de ese usuario, no como root (a menos que se especifique root).
+- **Group=**: Define el grupo principal bajo el cual se ejecutará el servicio, controlando sus permisos de acceso a archivos y recursos del sistema basados en la pertenencia a ese grupo.
+
 ##### c. ProtectHome
+
+- Restringe el acceso de un servicio a los directorios de usuario.
+- **ProtectHome=yes (o true)**: Hace que los directorios `/home`, `/root` y `/run/user/` aparezcan vacíos e inaccesibles para el servicio. Es la opción más restrictiva y es ideal para servicios que no tienen ningún motivo para interactuar con datos de usuario.
+- **ProtectHome=read-only**: Hace que los directorios `/home`, `/root` y `/run/user/` sean de solo lectura para el servicio.
+- **ProtectHome=tmpfs**: Monta un sistema de archivos temporal (tmpfs) sobre `/home`, `/root` y `/run/user/`. Esto también los hace aparecer vacíos, pero cualquier escritura que el servicio intente hacer en estas ubicaciones se realizará en una memoria volátil y no afectará los directorios reales. Es útil para servicios que necesitan un espacio de trabajo temporal dentro de lo que sería el "home", pero que no deben tener acceso persistente.
+- **ProtectHome=no (o false)**: Es el valor por defecto y significa que no se aplica ninguna restricción de ningún tipo a los directorios de usuario.
 
 ##### d. PrivateTmp
 
+- Su propósito es aislar los directorios temporales del servicio del resto del sistema.
+- **PrivateTmp=true**: Systemd monta un nuevo sistema de archivos temporal (tmpfs) dedicado y vacío sobre los directorios `/tmp` y `/var/tmp` específicamente para ese servicio. El servicio no puede ver ni acceder a los archivos que otros procesos o servicios hayan creado en los directorios `/tmp` o `/var/tmp` del sistema principal. De igual manera, los archivos que el servicio cree en sus `/tmp` o `/var/tmp` privados no serán visibles para otros procesos. Cuando el servicio se detiene, los directorios temporales privados y todo su contenido se borran automáticamente.
+
 ##### e. ProtectProc
 
+- Limita la información visible en el sistema de archivos `/proc` para el servicio y sus procesos hijos.
+- Controla cuánto puede "ver" un servicio sobre otros procesos que se están ejecutando en el sistema, o incluso sobre sí mismo.
+- Puede tomar varios valores, cada uno con un nivel diferente de restricción:
+  - **default**: No aplica ninguna restricción. El servicio tiene acceso normal a `/proc`.
+  - **invisible**: Oculta la información de los procesos que pertenecen a otros usuarios. Es decir, el servicio solo verá sus propios procesos y los procesos del mismo usuario.
+  - **noaccess**: Restringe completamente el acceso a `/proc` (excepto por la información esencial sobre el propio proceso). El servicio no podrá ver información sobre ningún otro proceso, ni siquiera de los que le pertenecen al mismo usuario.
+  - **ptraceable**: Oculta todos los procesos a menos que la función `ptrace()` esté permitida en un proceso específico.
+
 ##### f. MemoryAccounting, MemoryHigh y MemoryMax
+
+- Se relacionan con la gestión y el control del uso de la memoria para un servicio, usando las capacidades de cgroups.
+- **MemoryAccounting=**: Habilita el seguimiento y la contabilidad del uso de memoria del servicio. Debe ser true para que MemoryHigh y MemoryMax funcionen.
+- **MemoryHigh=**: Establece un límite "suave" de memoria. El kernel intentará que el servicio libere memoria si supera el límite, pero no lo terminará. Actúa como una señal para que el servicio reduzca su consumo.
+- **MemoryMax=**: Establece un límite "duro" y absoluto de memoria. Si el servicio alcanza este límite, el kernel lo matará para evitar que consuma toda la RAM del sistema.
 
 #### 3. Tenga en cuenta para los siguientes puntos:
 
@@ -587,13 +613,109 @@ Por ende debería estar habilitado KASLR.
 
 ##### a. Instale el servicio usando el script `install.sh`.
 
+```sh
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/Downloads/codigo-para-practicas/practica5/insecure_service$ sudo ./install.sh
+[sudo] password for juan:
+Instalando el servicio de practica5
+Failed to disable unit: Unit file insecure_service.service does not exist.
+Failed to kill unit insecure_service.service: Unit insecure_service.service not loaded.
+pkill: pattern that searches for process name longer than 15 characters will result in zero matches
+Try `pkill -f' option to match against the complete command line.
+Created symlink /etc/systemd/system/multi-user.target.wants/insecure_service.service → /etc/systemd/system/insecure_service.service.
+Servicio instalado y arrancado
+Para ver el estado del servicio:
+        systemctl status insecure_service.service
+Para ver los logs del servicio:
+        systemctl status insecure_service.service -l
+Para detener el servicio:
+        systemctl stop insecure_service.service
+Para reiniciar el servicio:
+        systemctl restart insecure_service.service
+Para desinstalar el servicio:
+        systemctl stop insecure_service.service
+        rm /etc/systemd/system/insecure_service.service
+        rm /opt/sistemasoperativos/insecure_service
+        systemctl daemon-reload
+```
+
 ##### b. Verifique que el servicio se está ejecutando con `systemctl status`.
 
-##### c. Verifique con qué UID se ejecuta el servicio usando `psaux | grep insecure_service`.
+```sh
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/Downloads/codigo-para-practicas/practica5/insecure_service$ systemctl status
+● juan-Lenovo-IdeaPad-S145-15AST
+    State: degraded
+    Units: 462 loaded (incl. loaded aliases)
+     Jobs: 0 queued
+   Failed: 1 units
+    Since: Mon 2025-06-02 13:37:07 -03; 10h ago
+  systemd: 255.4-1ubuntu8.6
+  Tainted: local-hwclock
+   CGroup: /
+           ├─init.scope
+           │ └─1 /sbin/init splash
+           ├─system.slice
+           │ ├─ModemManager.service
+           │ │ └─818 /usr/sbin/ModemManager
+           │ ├─NetworkManager.service
+           │ │ └─713 /usr/sbin/NetworkManager --no-daemon
+           │ ├─accounts-daemon.service
+           │ │ └─599 /usr/libexec/accounts-daemon
+           │ ├─avahi-daemon.service
+           │ │ ├─609 "avahi-daemon: running [juan-Lenovo-IdeaPad-S145-15AST.local]"
+           │ │ └─654 "avahi-daemon: chroot helper"
+           │ ├─bluetooth.service
+lines 1-22
+
+...
+
+           │ ├─insecure_service.service
+           │ │ └─7411 /opt/sistemasoperativos/insecure_service
+```
+
+##### c. Verifique con qué UID se ejecuta el servicio usando `ps aux | grep insecure_service`.
+
+```sh
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/Downloads/codigo-para-practicas/practica5/insecure_service$ ps aux | grep insecure_service
+root        7411  0.0  0.0 1232112 6784 ?        Ssl  00:36   0:00 /opt/sistemasoperativos/insecure_service
+juan        7623  0.0  0.0   9276  2176 pts/4    S+   00:38   0:00 grep --color=auto insecure_service
+```
+
+El servicio se ejecuta con UID de root.
 
 ##### d. Abra localhost:8080 en el navegador y explore los links provistos por este servicio.
 
-#### 5. Configure el servicio para que se ejecute con usuario y grupo no privilegiados (en Debian y derivados se llaman nouser y nogroup). Verifique con qué UID se ejecuta el servicio usando `psaux | grep insecure_service`.
+![Demo insecure_service en localhost:8080](https://i.imgur.com/zyyoWZq.png)
+
+#### 5. Configure el servicio para que se ejecute con usuario y grupo no privilegiados (en Debian y derivados se llaman nouser y nogroup). Verifique con qué UID se ejecuta el servicio usando `ps aux | grep insecure_service`.
+
+```ini
+# SystemD unit to handle insecure_service service
+[Unit]
+Description=Insecure service
+After=network.target
+
+[Service]
+Type=simple
+Restart=Always
+ExecStart=/opt/sistemasoperativos/insecure_service
+User=nouser
+Group=nogroup
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Agrego esas dos líneas debajo de ExecStart en el archivo `/etc/systemd/system/insecure_service.service`.
+
+Luego ejecuto `systemctl daemon-reload`, `systemctl restart insecure_service.service` y chequeo el UID:
+
+```sh
+root@juan-Lenovo-IdeaPad-S145-15AST:/# systemctl daemon-reload
+root@juan-Lenovo-IdeaPad-S145-15AST:/# systemctl restart insecure_service.service
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/Downloads/codigo-para-practicas/practica5/insecure_service$ ps aux | grep insecure_service
+root        8941  0.0  0.0 1232112 6784 ?        Ssl  00:48   0:00 /opt/sistemasoperativos/insecure_service
+juan        8983  0.0  0.0   9276  2176 pts/4    S+   00:49   0:00 grep --color=auto insecure_service
+```
 
 #### 6. Limite las IPs que pueden acceder al servicio para denegar todo por defecto y permitir solo conexiones de localhost (127.0.0.0/8).
 
