@@ -16,6 +16,26 @@
 
 ### D - AppArmor
 
+### Ayudas:
+
+### Es útil habilitar el modo complain y volver a ejecutar aa-genprof para detectar más acciones y que se agreguen al profile.
+
+### Seguro es necesario ajustar el archivo manualmente ya que aa-genprof no siempre muestra las opciones que necesitamos.
+
+### Verificar que no se agreguen “include” adicionales ya que traen otras reglas que van a cambiar el comportamiento.
+
+### Para permitir acceso a un directorio: `/path/terminado/en/barra/ r`
+
+### Para permitir acceso a los subdirectorios: `/path/terminado/en/barra/** r`
+
+### Para denegar es lo mismo agregando deny al principio.
+
+### Para permitir listar / pero denegar el resto: `/ r` y `deny /* r`
+
+### owner se usa para acceder solo a los recursos de los cuales el proceso es owner. No lo usaremos en esta práctica.
+
+### Siempre verificar que el perfil esté en enforce en las pruebas, si está en complain el proceso podrá acceder a todos los recursos y no estaremos probando el perfil realmente.
+
 #### 1. Instale las herramientas de espacio de usuario, perfiles por defecto de app-armor y auditd (necesario para generar perfiles de forma interactiva): `apt install apparmor apparmor-profiles apparmor-utils auditd`
 
 #### 2. Verifique si apparmor se encuentra habilitado con el comando `aa-enabled`. Si no se encuentra habilitado verifique el kernel que está ejecutando (el kernel de Debian de la VM lo trae habilitado por defecto).
@@ -47,9 +67,11 @@ systemctl disable insecure_service.service
 
 ###### ii. Abrir conexiones tcp ipv6
 
-###### iii. Listar el contenido de / y /proc
+###### iii. El perfil debe incluir los siguientes perfiles (y ningún otro): `include <abstractions/base>` y `include <abstractions/nameservice>`
 
-###### iv. Ejecutar dash con los permisos del perfil actual (ix)
+###### iv. Listar el contenido de `/` y `/proc` pero no de otros subdirectorios de `/`
+
+###### v. Ejecutar con los permisos del perfil actual (mrix) los siguientes comandos: `/usr/bin/dash`, `/usr/bin/ip`,`/usr/bin/mawk` y `/usr/bin/ps`
 
 #### 7. Habilite el modo enforcing y verifique si funciona (`aa-enforcing`).
 
