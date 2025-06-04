@@ -1604,4 +1604,62 @@ Lo que se va a planificar es:
 
 <h1 align="center">Clase 11 - 4 de junio, 2025</h1>
 
-##
+## Deadlocks
+
+### Definición
+
+### Ejemplos
+
+#### 1
+
+#### 2
+
+#### 3
+
+### Recursos
+
+#### Concepto
+
+#### Secuencia de uso de un recurso
+
+#### Grafo de Asignación de Recursos
+
+### Condiciones para que haya deadlock
+
+### Métodos de tratamiento del deadlock
+
+### Prevención
+
+#### Concepto
+
+#### Condición de exclusión mutua
+
+#### Condición de retención y espera
+
+#### Condición de no apropiación
+
+#### Condición de espera circular
+
+#### Ejemplo
+
+### Evitación
+
+#### Concepto
+
+### Estado seguro vs inseguro
+
+#### Concepto
+
+#### Ejemplos
+
+##### 1
+
+##### 2
+
+### Algoritmos para evitar el deadlock
+
+#### Idea según la cantidad de instancias del recurso
+
+#### Algoritmo del banquero
+
+#### Algoritmo de detección y recuperación
