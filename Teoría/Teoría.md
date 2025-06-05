@@ -1608,58 +1608,277 @@ Lo que se va a planificar es:
 
 ### Definición
 
+- Un conjunto de procesos están en deadlock cuando **cada uno de ellos está esperando por un recurso que está siendo usado por otro proceso del mismo conjunto**.
+- Un estado de deadlock puede involucrar recursos de distintos tipos.
+
 ### Ejemplos
 
 #### 1
 
+1. Proceso A pide un scanner.
+2. Proceso B pide una grabadora de CD.
+3. Proceso A pide ahora la grabadora de CD.
+4. Proceso B quiere el scanner.
+
 #### 2
 
+![Ejemplo deadlock - Autos en una ciudad]()
+
 #### 3
+
+![Ejemplo deadlock - Procesos P y Q]()
 
 ### Recursos
 
 #### Concepto
 
+- Todos los SO contienen recursos, los cuales pueden ser:
+  - **Físicos** (CPU, memoria, dispositivos).
+  - **Lógicos** (Archivos, registros, semáforos, etc).
+- A su vez, los recursos también se clasifican de otra manera:
+  - **Apropiativos**: se le pueden quitar al proceso sin efectos dañinos (memoria, CPU).
+  - **No apropiativos**: si se le saca al proceso, éste falla (interrumpir una escritura a CD, impresora).
+- Cada recurso puede tener N instancias idénticas, donde la clase de un recurso es el conjunto de instancias de ese recurso.
+
 #### Secuencia de uso de un recurso
+
+- Bajo un modo de operación normal, un proceso emplea un recurso siguiendo esta secuencia:
+  1. **Solicitud**: Si no se puede conceder de forma inmediata, el proceso deberá esperar a que el recurso se libere.
+  2. **Uso**: El proceso puede operar sobre el recurso.
+  3. **Liberación**: Se libera el recurso para que otro proceso lo pueda usar.
+- Si el recurso que se quiere usar está ocupado, se sigue un "Ciclo corto de solicitud":
+  1. **Solicitud fallida**.
+  2. **Espera inactiva**.
+  3. **Nuevo intento de solicitud**.
 
 #### Grafo de Asignación de Recursos
 
+- Para poder representar la asignación de recursos, se usa un **Grafo de Asignación de recursos**.
+- El grafo permite visualizar el estado de los recursos del sistema y procesos en un momento determinado.
+- Cada proceso o recurso es representado por un **nodo**.
+- Un recurso con varias instancias posee mas de un "Punto" dentro de nodo.
+- Una **arista** representa una relación entre un Proceso y un Recurso.
+- Notar que las aristas son dirigidas y dependiendo de la dirección indican distintos estados.
+- Elementos del grafo:
+
+![Elementos del grafo]()
+
+- Ejemplo de grafo con deadlock:
+
+![Ejemplo de grafo con deadlock]()
+
+- Ejemplo de grafo sin deadlock:
+
+![Ejemplo de grafo sin deadlock]()
+
+- Si el grafo contiene ciclos, NO hay deadlock.
+- Si el grafo contiene ciclos:
+  - Si hay una única instancia por tipo de recurso → Hay deadlock.
+  - Si hay varias instancias por tipo de recurso → Puede haber deadlock.
+
 ### Condiciones para que haya deadlock
 
+1. **Exclusión mutua**:
+   1. Algunos recursos no pueden ser compartidos, solo un proceso puede usarlos a la vez.
+   2. Por ejemplo, una impresora o un archivo en modo escritura.
+   3. Si un proceso está usando el recurso, los demás deben esperar.
+2. **Retención y espera**:
+   1. Un proceso que ya posee uno o más recursos sigue manteniéndolos mientras solicita recursos adicionales que están en posesión de otros procesos.
+   2. Esto genera una situación donde los procesos no sueltan lo que tienen mientras esperan por más.
+3. **No apropiación**:
+   1. Los recursos no pueden ser forzadamente retirados a un proceso.
+   2. Solo pueden ser liberados voluntariamente por el proceso que los posee, típicamente al completar su tarea.
+4. **Espera circular**:
+   1. Existe una cadena cerrada de procesos donde cada proceso está esperando un recurso que posee el siguiente proceso en la cadena.
+   2. Por ejemplo, el proceso A espera un recurso de B, B espera uno de C, y C espera uno de A.
+
+**Para que haya deadlock, las 4 condiciones se deben cumplir a la vez: si solo 3 se cumplen, no hay deadlock**.
+
 ### Métodos de tratamiento del deadlock
+
+Existen distintos enfoques para el manejo de deadlocks:
+
+1. Usar un protocolo que asegure que jamás se entrará en estado de deadlock:
+   1. Prevenir: que no se cumpla alguna de las 4 condiciones.
+   2. Evitar: tomar decisiones de asignación en base al estado del sistema.
+2. Permitir el estado de deadlock y luego recuperarse del mismo.
+3. Ignorar el problema y esperar que nunca ocurra un deadlock.
 
 ### Prevención
 
 #### Concepto
 
+- Consiste en prevenir la formación del deadlock.
+- Busca que por lo menos una de las cuatro condiciones no pueda mantenerse.
+
 #### Condición de exclusión mutua
+
+- Si ningún recurso se asignara de manera exclusiva (no siempre se puede), no habría deadlock.
+- Considerar que hay recursos **compartibles** (archivos read only, memoria) y **no compartibles** (impresora).
+- Los recursos compartibles NO requieren exclusión mutua.
+- Mantener la exclusión mutua para los no compartibles puede resultar complejo:
+  - Se pueden implementar esquemas de encolamiento y que el recurso sea manejado por un proceso global (**spooler**). De esta manera no se bloquea el recurso no compartible, pero el spooler podría llenarse y bloquear procesos.
 
 #### Condición de retención y espera
 
+- Se basa en que si un proceso requiere un recurso que no está disponible, debe liberar otros.
+- Alternativas:
+  - Un proceso debe requerir y reservar todos los recursos a usar antes de comenzar la ejecución (precedencia de las system calls que hacen el requerimiento antes de cualquier otra system call).
+  - El proceso puede requerir recursos sólo cuando no tiene ninguno (al comienzo de su ejecución generalmente).
+- Desventajas:
+  - Baja utilización de recursos.
+  - Posibilidad de inanición o espera infinita de alguno de los procesos.
+
 #### Condición de no apropiación
+
+- No siempre se puede atacar esta condición, ya que no siempre se le puede expropiar un recurso a un proceso.
+- Una posible solución es virtualizar recursos:
+  - El proceso no accede directamente al recurso, sino que accede a un demonio que lo administra.
+  - Solo el demonio tiene acceso al recurso, y a medida que los procesos requieren el recurso, interactúan con el demonio quien almacena los trabajos en una cola (spooler).
+  - De esta manera se logra que el recurso físico pueda ser "usado" por varios procesos al mismo tiempo (en realidad solo un proceso a la vez lo está usando).
 
 #### Condición de espera circular
 
-#### Ejemplo
+- Se define un ordenamiento de los recursos. Luego, un proceso puede requerir recursos en un orden numérico ascendente.
+- Sea $F: (R → ℕ)$.
+- La función $F$ asigna un número único a cada recurso (los números pequeños para recursos muy usados).
+- Un proceso, que ya tiene la instancia **i** del recurso R puede requerir otra instancia **j** de ese recurso si y solo si $F(i) < F(j)$.
+- Como es imposible que $F(j) > F(i) \land F(j) < F(i)$ a la vez, se puede garantizar que no habrá un bucle en el grafo de asignación de recursos.
+- Ejemplo:
+  - Supongamos que se han definido los siguientes valores:
+    - F(CD) = 1
+    - F(disco duro) = 4
+    - F(impresora) = 7
+  - Un proceso que ya tiene asignado el disco, puede pedir la impresora, ya que F(impresora) > F(disco duro).
+  - Si ya tiene la impresora, no puede solicitar el CD.
 
 ### Evitación
 
 #### Concepto
 
+- Tiene como objetivo que no se llegue a un estado de deadlock.
+- Requiere que el SO tenga información sobre el uso de los recursos.
+- Busca asignar cuidadosamente los recursos, manteniendo información actualizada sobre requerimiento y uso de recursos.
+- Impone restricciones en la forma en que los procesos requieren los recursos.
+- La técnica se basa en tomar decisiones acerca de la asignación de los recursos.
+- En todo momento el SO toma decisiones dinámicas acerca de la asignación. Si en algún momento se evalúa que podría entrarse en un estado de deadlock, la asignación de recursos se rechaza.
+- Desventajas en implementación: puede producir una baja utilización de los recursos y de la performance del sistema debido a los cómputos que deben realizarse.
+
 ### Estado seguro vs inseguro
 
 #### Concepto
 
-#### Ejemplos
+- Un sistema está en un estado seguro si el SO puede asignar recursos a cada proceso de un conjunto de alguna manera, evitando el deadlock.
+- Cuando un proceso solicita un recurso disponible, el sistema debe decidir si la asignación inmediata deja el sistema en un estado seguro.
+- Debe haber una secuencia de "cadena segura" de TODOS los procesos <P0, P1, ... , Pn>, que puedan ejecutarse con todos los recursos disponibles sin que haya deadlock.
+- El sistema estará en un estado **seguro** si existe secuencia (cadena segura) <P0, P1, ... , Pn> para todos los procesos del sistema. Si la secuencia no existe, el sistema está en estado **inseguro**.
+- Si esta secuencia existe, esto significa que se pueden satisfacer los requerimientos, teniendo en cuenta lo actualmente asignado a los procesos en ejecución.
+- Si los recursos necesarios de $P_i$ no están disponibles inmediatamente, entonces $P_i$ puede esperar hasta que todos los $P_j$ hayan terminado.
+- Cuando $P_j$ está terminado, $P_i$ puede obtener los recursos necesarios, ejecutar, devolver los recursos asignados y terminar.
+- Cuando $P_i$ termina, $P_i + 1$ puede obtener sus recursos necesarios, y así sucesivamente.
+- Estado seguro, inseguro y deadlock:
+  - En un estado seguro se garantiza que no hay deadlock.
+  - En un estado inseguro **puede haber** deadlock, pero no necesariamente: por ejemplo, puede ocurrir que no exista cadena de asignación temporalmente, pero ante la terminación de un proceso, se liberen recursos y se pueda construir la cadena.
+  - Si hay deadlock, el estado es inseguro.
 
-##### 1
+#### Ejemplo
 
-##### 2
+| Procesos | Máximo a usar | En uso |
+| -------- | ------------- | ------ |
+| **P0**   | 10            | 5      |
+| **P1**   | 4             | 2      |
+| **P2**   | 9             | 2      |
+
+- En un sistema existen 3 procesos P0, P1 y P2 que comparten 12 unidades de cinta.
+- Según la tabla, hay 5 + 2 + 2 = **9** cintas en uso, por ende 3 cintas libres.
+- En este caso, el sistema está en estado seguro, porque:
+  - P1 está usando 2 unidades de cinta y necesita 2 más, y como hay 3 libres, se le puede conceder 2 unidades sin problemas → queda 1 unidad libre.
+  - P1 termina y ahora hay 1 + 4 = **5** unidades libres.
+  - Como hay 5 unidades libres, P0 pide 5 y se le conceden.
+  - P0 termina y ahora hay 10 unidades libres.
+  - P2 solicita las 7 que necesita, y termina.
+  - Esta es una cadena segura.
+- Si el máximo a usar de P0 fuera 12, no habría cadena segura, y el sistema estaría en deadlock.
 
 ### Algoritmos para evitar el deadlock
 
 #### Idea según la cantidad de instancias del recurso
 
+- Se usan distintos algoritmos según la cantidad de instancias del recurso.
+- **Si el tipo de recurso tiene una única instancia**:
+  - Se necesita un algoritmo que determine el estado seguro del sistema.
+  - Se debe encontrar una cadena segura.
+  - Se usa el grafo de asignación de recursos.
+- **Si el tipo de recurso tiene varias instancias**:
+  - Se usa el algoritmo del banquero, el cual es teórico y no implementable en la práctica debido a lo costoso que es.
+  - Se busca una cadena segura de asignación.
+
 #### Algoritmo del banquero
 
+##### Concepto
+
+- Se aplica para sistemas con múltiples instancias de cada recurso.
+- Los procesos declaran el número máximo de instancias de cada recurso que necesitarían en toda su ejecución.
+- Ese número no puede exceder el total de instancias de recursos de ese tipo en el sistema. Si lo excede, ese proceso no se puede ejecutar.
+- El SO decidirá en qué momento asignarlos, garantizando un estado seguro.
+
+##### Estructuras
+
+- **N**: Cantidad de procesos.
+- **M**: Cantidad de tipos de recursos.
+- **Disponible**: Vector de tamaño M con la cantidad de recursos disponibles actualmente para cada tipo.
+- **Max**: Matriz de $N×M$ que indica la cantidad máxima de recursos que un proceso necesitará, por cada tipo.
+- **Asignación**: Matriz de $N×M$ que indica la cuántos recursos de cada tipo tiene asignados actualmente un proceso. Se va actualizando haciendo Max - Asignación.
+- **Necesidad**: Matriz de $N×M$ que indica la cantidad de recursos por cada tipo que le faltan actualmente a un proceso.
+
 #### Algoritmo de detección y recuperación
+
+##### Concepto
+
+- Consiste en permitir el deadlock y luego recuperarse del mismo.
+- Proporciona un mayor grado potencial de concurrencia que las técnicas de Prevención o Evitación.
+- Puede ser una técnica atractiva en sistemas con una baja probabilidad de deadlock.
+- Para esto, se cuenta con dos algoritmos:
+  - Uno que examina si ocurrió un deadlock.
+  - Uno que se recupera del deadlock.
+
+##### Detección
+
+- Si los recursos son de **múltiples instancias**, se usa el algoritmo del banquero.
+- Si los recursos son de **única instancia**, se usa y analiza un grafo de asignación ligeramente modificado: **grafo de espera**. En este grafo, los nodos representan procesos, y una arista de $P_i$ hacia $P_j$ indica que $P_i$ está esperando que $P_j$ libere el recurso.
+  - El algoritmo busca periódicamente ciclos en el grafo, ya que ciclo → deadlock.
+  - La frecuencia con la cual se chequea esto depende de varios factores:
+    - Qué tan probable es que ocurra un deadlock en el sistema que se tiene.
+    - Cuántos procesos tendrían que ser revertidos si se encuentra un deadlock.
+  - Esta frecuencia suele ser un parámetro definido del sistema.
+  - Los motores de bases de datos también poseen algoritmos de detección de Deadlocks. Por ejemplo SQLserver lo ejecuta cada 5 segundos.
+  - Comprobar el estado cada vez que se solicita un recurso y éste no puede ser asignado es otra opción, aunque costosa en uso de CPU.
+  - Una limitación importante es que si el algoritmo de detección se invoca arbitrariamente, puede haber muchos ciclos en el gráfo de recursos y por ende no se podría saber cuál de todos esos procesos bloqueados fue el que causó el deadlock.
+  - Cuando el porcentaje de utilización de la CPU de repente baja bastante a pesar de que hay muchos procesos en ejecución, es probable que haya deadlock.
+
+##### Recuperación
+
+- Una vez que el algoritmo de detección encuentra un deadlock, hay dos formas de eliminarlo:
+  - Que el **usuario** lo resuelva manualmente, luego de informarle la situación.
+  - Esperar que el **sistema** se recupere automáticamente.
+- En cualquier caso, hay dos opciones como solución:
+  - **Expropiar recursos** a uno o más procesos del ciclo.
+  - **Abortar (no necesariamente matar) uno o más procesos** para romper el ciclo. Esto se puede lograr de dos formas:
+    - Abortar/matar todos los procesos involucrados a la vez, lo cual es simple pero puede ser riesgoso.
+    - Abortar/matar de a un proceso a la vez hasta detectar que el ciclo se eliminó.
+      - Esta opción añade considerable overhead ya que por cada proceso que vamos eliminando se debe volver a ejecutar el Algoritmo de Detección para verificar que el deadlock efectivamente haya sido resuelto.
+      - Puede no ser fácil terminar un proceso (puede estar actualizando un archivo por ejemplo).
+      - Previo a terminar el proceso hay que hacerlo llegar a un estado seguro (checkpoint) de modo que al reanudarlo quede consistente.
+      - Se presenta un nuevo problema de política o decisión: selección del proceso víctima.
+      - Se debe seleccionar aquel proceso cuya terminación represente el menor costo para el sistema. Lo ideal sería elegir a un proceso que se pueda volver a ejecutar sin problemas (por ejemplo una compilación).
+      - Otros criterios a tener en cuenta para elegir el proceso son la prioridad del mismo (elegir el que tenga la más baja), la cantidad de tiempo que ha usado la CPU (elegir el que tenga el menor), el tiempo restante estimado para terminar (elegir el que tenga el mayor), la cantidad de recursos que tiene asignados (elegir el que tenga la menor), etc.
+      - Hay que asegurarse de no seleccionar siempre al mismo proceso, ya que puede producirse inanición.
+
+#### Conclusión
+
+- Ninguno de los métodos presentados es 100% adecuado para ser utilizado como estrategia exclusiva de manejo de deadlock en un sistema complejo.
+- La Prevención, Evitación y Detección pueden **combinarse** para obtener una máxima efectividad.
+- Se dividen los recursos del sistema en "clases de recursos":
+  - Para cada clase se aplica el método de manejo de deadlock que resulte más adecuado.
+  - Depende de si soportan apropiaciones.
+  - Depende de si se puede predecir el comportamiento del recurso o no.
