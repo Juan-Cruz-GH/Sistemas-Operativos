@@ -1622,11 +1622,11 @@ Lo que se va a planificar es:
 
 #### 2
 
-![Ejemplo deadlock - Autos en una ciudad]()
+![Ejemplo deadlock - Autos en una ciudad](https://i.imgur.com/GiiOR2o.png)
 
 #### 3
 
-![Ejemplo deadlock - Procesos P y Q]()
+![Ejemplo deadlock - Procesos P y Q](https://i.imgur.com/rfuPIHS.png)
 
 ### Recursos
 
@@ -1661,17 +1661,17 @@ Lo que se va a planificar es:
 - Notar que las aristas son dirigidas y dependiendo de la dirección indican distintos estados.
 - Elementos del grafo:
 
-![Elementos del grafo]()
+![Elementos del grafo](https://i.imgur.com/RBnXf3L.png)
 
-- Ejemplo de grafo con deadlock:
+- Ejemplo de grafo sin ciclos y por ende sin deadlock:
 
-![Ejemplo de grafo con deadlock]()
+![Ejemplo de grafo sin deadlock](https://i.imgur.com/CFW8s0g.png)
 
-- Ejemplo de grafo sin deadlock:
+- Ejemplo de grafo con ciclo y deadlock:
 
-![Ejemplo de grafo sin deadlock]()
+![Ejemplo de grafo con ciclo y deadlock](https://i.imgur.com/oVUGgpQ.png)
 
-- Si el grafo contiene ciclos, NO hay deadlock.
+- Si el grafo no contiene ciclos, NO hay deadlock.
 - Si el grafo contiene ciclos:
   - Si hay una única instancia por tipo de recurso → Hay deadlock.
   - Si hay varias instancias por tipo de recurso → Puede haber deadlock.
