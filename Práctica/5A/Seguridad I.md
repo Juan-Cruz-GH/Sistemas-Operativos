@@ -496,7 +496,7 @@ En un módulo del Kernel, se usa KASLR, la versión de ASLR específica para el 
 
 Por ende debería estar habilitado KASLR.
 
-### C - Ejercicio SystemD
+### D - Ejercicio SystemD
 
 #### Objetivo: Aprender algunas restricciones de seguridad que se pueden aplicar a un servicio en SystemD.
 
@@ -614,8 +614,8 @@ Por ende debería estar habilitado KASLR.
 ##### a. Instale el servicio usando el script `install.sh`.
 
 ```sh
-juan@juan-Lenovo-IdeaPad-S145-15AST:~/Downloads/codigo-para-practicas/practica5/insecure_service$ sudo ./install.sh
-[sudo] password for juan:
+so@so:~/codigo-para-practicas/practica5/insecure_service$ su -c ./install.sh
+Contraseña:
 Instalando el servicio de practica5
 Failed to disable unit: Unit file insecure_service.service does not exist.
 Failed to kill unit insecure_service.service: Unit insecure_service.service not loaded.
@@ -641,43 +641,43 @@ Para desinstalar el servicio:
 ##### b. Verifique que el servicio se está ejecutando con `systemctl status`.
 
 ```sh
-juan@juan-Lenovo-IdeaPad-S145-15AST:~/Downloads/codigo-para-practicas/practica5/insecure_service$ systemctl status
-● juan-Lenovo-IdeaPad-S145-15AST
-    State: degraded
-    Units: 462 loaded (incl. loaded aliases)
+so@so:~/codigo-para-practicas/practica5/insecure_service$ systemctl status
+● so
+    State: running
+    Units: 245 loaded (incl. loaded aliases)
      Jobs: 0 queued
-   Failed: 1 units
-    Since: Mon 2025-06-02 13:37:07 -03; 10h ago
-  systemd: 255.4-1ubuntu8.6
-  Tainted: local-hwclock
+   Failed: 0 units
+    Since: Fri 2025-06-06 20:50:41 -03; 9min ago
+  systemd: 252.33-1~deb12u1
    CGroup: /
            ├─init.scope
-           │ └─1 /sbin/init splash
+           │ └─1 /sbin/init
            ├─system.slice
-           │ ├─ModemManager.service
-           │ │ └─818 /usr/sbin/ModemManager
-           │ ├─NetworkManager.service
-           │ │ └─713 /usr/sbin/NetworkManager --no-daemon
-           │ ├─accounts-daemon.service
-           │ │ └─599 /usr/libexec/accounts-daemon
-           │ ├─avahi-daemon.service
-           │ │ ├─609 "avahi-daemon: running [juan-Lenovo-IdeaPad-S145-15AST.local]"
-           │ │ └─654 "avahi-daemon: chroot helper"
-           │ ├─bluetooth.service
-lines 1-22
-
-...
-
+           │ ├─anacron.service
+           │ │ └─505 /usr/sbin/anacron -d -q -s
+           │ ├─cron.service
+           │ │ └─506 /usr/sbin/cron -f
+           │ ├─dbus.service
+           │ │ └─507 /usr/bin/dbus-daemon --system --address=systemd: --nofork --nopi>
+           │ ├─ifup@enp0s3.service
+           │ │ └─442 dhclient -4 -v -i -pf /run/dhclient.enp0s3.pid -lf /var/lib/dhcp>
+           │ ├─ifup@enp0s8.service
+           │ │ └─382 dhclient -4 -v -i -pf /run/dhclient.enp0s8.pid -lf /var/lib/dhcp>
            │ ├─insecure_service.service
-           │ │ └─7411 /opt/sistemasoperativos/insecure_service
+           │ │ └─1640 /opt/sistemasoperativos/insecure_service
+           │ ├─ssh.service
+           │ │ └─518 "sshd: /usr/sbin/sshd -D [listener] 0 of 10-100 startups"
+           │ ├─systemd-journald.service
+           │ │ └─217 /lib/systemd/systemd-journald
+lines 1-27
 ```
 
 ##### c. Verifique con qué UID se ejecuta el servicio usando `ps aux | grep insecure_service`.
 
 ```sh
-juan@juan-Lenovo-IdeaPad-S145-15AST:~/Downloads/codigo-para-practicas/practica5/insecure_service$ ps aux | grep insecure_service
-root        7411  0.0  0.0 1232112 6784 ?        Ssl  00:36   0:00 /opt/sistemasoperativos/insecure_service
-juan        7623  0.0  0.0   9276  2176 pts/4    S+   00:38   0:00 grep --color=auto insecure_service
+so@so:~/codigo-para-practicas/practica5/insecure_service$ ps aux | grep insecure_service
+root        1640  0.0  0.4 1232112 8244 ?        Ssl  20:58   0:00 /opt/sistemasoperativos/insecure_service
+so          1803  0.0  0.1   6484  2128 pts/1    S+   21:01   0:00 grep insecure_service
 ```
 
 El servicio se ejecuta con UID de root.
@@ -698,26 +698,54 @@ After=network.target
 Type=simple
 Restart=Always
 ExecStart=/opt/sistemasoperativos/insecure_service
-User=nouser
+User=nobody
 Group=nogroup
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-Agrego esas dos líneas debajo de ExecStart en el archivo `/etc/systemd/system/insecure_service.service`.
+Agrego esas dos líneas debajo de ExecStart en el archivo `/etc/systemd/system/insecure_service.service`. **NOTA**: User=nouser no me funcionó, tuve que usar User=**nobody**.
 
 Luego ejecuto `systemctl daemon-reload`, `systemctl restart insecure_service.service` y chequeo el UID:
 
 ```sh
-root@juan-Lenovo-IdeaPad-S145-15AST:/# systemctl daemon-reload
-root@juan-Lenovo-IdeaPad-S145-15AST:/# systemctl restart insecure_service.service
-juan@juan-Lenovo-IdeaPad-S145-15AST:~/Downloads/codigo-para-practicas/practica5/insecure_service$ ps aux | grep insecure_service
-root        8941  0.0  0.0 1232112 6784 ?        Ssl  00:48   0:00 /opt/sistemasoperativos/insecure_service
-juan        8983  0.0  0.0   9276  2176 pts/4    S+   00:49   0:00 grep --color=auto insecure_service
+root@so:/etc/systemd/system# systemctl daemon-reload
+root@so:/etc/systemd/system# systemctl restart insecure_service
+so@so:~$ ps aux | grep insecure_service
+nobody      3494  0.0  0.5 1232112 10356 ?       Ssl  21:15   0:00 /opt/sistemasoperativos/insecure_service
+so          3868  0.0  0.1   6484  2136 pts/0    S+   21:19   0:00 grep insecure_service
 ```
 
+Ahora el servicio se ejecuta con UID de nobody.
+
 #### 6. Limite las IPs que pueden acceder al servicio para denegar todo por defecto y permitir solo conexiones de localhost (127.0.0.0/8).
+
+```ini
+# SystemD unit to handle insecure_service service
+[Unit]
+Description=Insecure service
+After=network.target
+
+[Service]
+Type=simple
+Restart=Always
+ExecStart=/opt/sistemasoperativos/insecure_service
+User=nobody
+Group=nogroup
+IPAddressAllow=127.0.0.0/8
+IPAddressDeny=any
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Agrego esas dos líneas debajo de Group en el archivo `/etc/systemd/system/insecure_service.service`.
+
+```sh
+root@so:/home/so# systemctl daemon-reload
+root@so:/home/so# systemctl restart insecure_service
+```
 
 #### 7. Explore el directorio `/home` y el directorio `/tmp` usando el servicio y luego:
 
@@ -725,6 +753,122 @@ juan        8983  0.0  0.0   9276  2176 pts/4    S+   00:49   0:00 grep --color=
 
 ##### b. Recargue el servicio y verifique que estas restricciones surgieron efecto.
 
+**Explorando el directorio `/home`**:
+
+![Directorio /home](https://i.imgur.com/3lrHgcX.png)
+
+**Explorando el directorio `/tmp`**:
+
+![Directorio /tmp](https://i.imgur.com/3N9bsfD.png)
+
+```ini
+# SystemD unit to handle insecure_service service
+[Unit]
+Description=Insecure service
+After=network.target
+
+[Service]
+Type=simple
+Restart=Always
+ExecStart=/opt/sistemasoperativos/insecure_service
+User=nobody
+Group=nogroup
+IPAddressAllow=127.0.0.0/8
+IPAddressDeny=any
+ProtectHome=yes
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Agrego esas dos líneas debajo de IPAddressDeny en el archivo `/etc/systemd/system/insecure_service.service` para que no se pueda ver el contenido de `/home` y para que tenga su propio `/tmp` privado.
+
+```sh
+root@so:/home/so# systemctl daemon-reload
+root@so:/home/so# systemctl restart insecure_service
+```
+
+**Verificando restricción del directorio `/home`**:
+
+![Directorio /home](https://i.imgur.com/Z6WQqr8.png)
+
+**Verificando restricción del directorio `/tmp`**:
+
+![Directorio /tmp](https://i.imgur.com/zo5UaXb.png)
+
 #### 8. Limite el acceso a información de otros procesos por parte del servicio.
 
+**Por defecto, podemos ver la información de todos los procesos**:
+
+![Información de procesos sin restricción](https://i.imgur.com/AOzIZTk.png)
+
+```ini
+# SystemD unit to handle insecure_service service
+[Unit]
+Description=Insecure service
+After=network.target
+
+[Service]
+Type=simple
+Restart=Always
+ExecStart=/opt/sistemasoperativos/insecure_service
+User=nobody
+Group=nogroup
+IPAddressAllow=127.0.0.0/8
+IPAddressDeny=any
+ProtectHome=yes
+PrivateTmp=true
+ProtectProc=invisible
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Agrego esa línea debajo de PrivateTmp en el archivo `/etc/systemd/system/insecure_service.service` para que no se oculte la información de los procesos que pertenecen a otros usuarios. Es decir, el servicio solo verá sus propios procesos y los procesos del mismo usuario.
+
+```sh
+root@so:/home/so# systemctl daemon-reload
+root@so:/home/so# systemctl restart insecure_service
+```
+
+**Verificando la restricción**:
+
+![Información de procesos con restricción](https://i.imgur.com/fUf0GSZ.png)
+
 #### 9. Establezca un límite de 16M al uso de memoria del servicio e intente alocar más de esa memoria en la sección "Memoria" usando el link [Aumentar Reserva de Memoria](http://localhost:8080/mem/alloc).
+
+**Por defecto, podemos reservarle al servicio tanta memoria como queramos, por ejemplo 32M**:
+
+![Reserva de memoria sin restricción](https://i.imgur.com/Ktawpob.png)
+
+```ini
+# SystemD unit to handle insecure_service service
+[Unit]
+Description=Insecure service
+After=network.target
+
+[Service]
+Type=simple
+Restart=Always
+ExecStart=/opt/sistemasoperativos/insecure_service
+User=nobody
+Group=nogroup
+IPAddressAllow=127.0.0.0/8
+IPAddressDeny=any
+ProtectHome=yes
+PrivateTmp=true
+ProtectProc=invisible
+MemoryAccounting=true
+MemoryHigh=16M
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Agrego esas dos líneas debajo de ProtectProc en el archivo `/etc/systemd/system/insecure_service.service` para que primero systemd pueda rastrear y aplicar límites de memoria, y además que si el servicio excede los 16M de memoria, el kernel intente reducirlo, pero sin matar al servicio.
+
+```sh
+root@so:/home/so# systemctl daemon-reload
+root@so:/home/so# systemctl restart insecure_service
+```
