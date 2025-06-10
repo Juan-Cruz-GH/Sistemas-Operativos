@@ -320,12 +320,240 @@ Nuevamente, a veces el scheduler migra los hilos y a veces no.
 
 #### 5. Utilice `taskset` para ejecutar todos los hilos del programa `affinity` en el core 0.
 
+```sh
+root@so:/home/so/codigo-para-practicas/practica6# taskset -c 0 ./affinity
+Worker thread 6, running on CPU 0
+Worker thread 7, running on CPU 0
+Worker thread 8, running on CPU 0
+Worker thread 9, running on CPU 0
+Worker thread 10, running on CPU 0
+Worker thread 11, running on CPU 0
+Worker thread 5, running on CPU 0
+Worker thread 4, running on CPU 0
+Worker thread 3, running on CPU 0
+Worker thread 2, running on CPU 0
+Worker thread 1, running on CPU 0
+```
+
 ##### a. ¿Cuánto tiempo tardó la ejecución comparativamente con invocar `./affinity` sin taskset? Puede usar el comando `time` y sumar los 3 valores que devuelve para obtener un valor preciso.
+
+**Tiempo de ejecución de `./affinity` sin taskset**:
+
+```sh
+root@so:/home/so/codigo-para-practicas/practica6# time ./affinity
+Worker thread 1, running on CPU 0
+Worker thread 0, running on CPU 1
+Worker thread 0 moved from CPU 1 to CPU 5
+Worker thread 8, running on CPU 2
+Worker thread 3, running on CPU 3
+Worker thread 4, running on CPU 4
+Worker thread 9, running on CPU 1
+Worker thread 10, running on CPU 0
+Worker thread 2, running on CPU 5
+Worker thread 2 moved from CPU 5 to CPU 0
+Worker thread 7, running on CPU 4
+Worker thread 6, running on CPU 3
+Worker thread 11, running on CPU 2
+Worker thread 5, running on CPU 5
+Worker thread 0 moved from CPU 5 to CPU 1
+Worker thread 2 moved from CPU 0 to CPU 5
+Worker thread 6 moved from CPU 3 to CPU 1
+Worker thread 10 moved from CPU 0 to CPU 1
+Worker thread 1 moved from CPU 0 to CPU 3
+
+real    0m21,596s
+user    1m51,060s
+sys     0m10,788s
+```
+
+**Tiempo de ejecución de `./affinity` con taskset, todos los hilos en el core 0**:
+
+```sh
+root@so:/home/so/codigo-para-practicas/practica6# time (taskset -c 0 ./affinity)
+Worker thread 6, running on CPU 0
+Worker thread 7, running on CPU 0
+Worker thread 8, running on CPU 0
+Worker thread 9, running on CPU 0
+Worker thread 10, running on CPU 0
+Worker thread 11, running on CPU 0
+Worker thread 5, running on CPU 0
+Worker thread 4, running on CPU 0
+Worker thread 3, running on CPU 0
+Worker thread 2, running on CPU 0
+Worker thread 1, running on CPU 0
+Worker thread 0, running on CPU 0
+
+real    1m30,719s
+user    1m30,359s
+sys     0m0,340s
+```
+
+El tiempo es mucho peor porque no tenemos paralelismo, a diferencia de sin el taskset, donde siempre teníamos 6 hilos ejecutandose en paralelo.
 
 #### 6. Analice el código y comentarios de `affinity_half_and_half.c`.
 
+```c
+#define _GNU_SOURCE // For sched_getcpu()
+#include <stdio.h>
+#include <stdarg.h>
+#include <pthread.h>
+#include <sched.h>
+#include <assert.h>
+#include <sys/sysinfo.h> // For get_nprocs()
+
+#define THREADS 12
+#define ITERATIONS 20000000
+
+// Mutex for synchronizing printf output
+pthread_mutex_t print_lock = PTHREAD_MUTEX_INITIALIZER;
+
+/** printf_sync - A thread-safe printf function
+ *  @fmt: The format string for printf
+ *  @...: The values to format and print
+ *
+ *  This function ensures that printf is thread-safe by using a mutex to lock the output
+ *  buffer while printing. This is important in multi-threaded or multi-processed applications
+ *  where multiple threads or processes may attempt to write to stdout simultaneously.
+ *  This function also flushes the output buffer immediately to ensure that the output is consistent
+ *  across threads or processes.
+ */
+void printf_sync(const char *fmt, ...)
+{
+    // Lock the mutex to ensure that only one thread can print at a time
+    pthread_mutex_lock(&print_lock);
+    va_list args;
+    va_start(args, fmt);
+    vprintf(fmt, args);
+    va_end(args);
+    // Flush the output buffer to ensure immediate display
+    fflush(stdout);
+    pthread_mutex_unlock(&print_lock);
+}
+
+void *worker(void *rank_p)
+{
+    // Cast the void pointer to an int pointer and dereference it to get the thread rank (not id)
+    int rank = *(int *)rank_p;
+    // Get the CPU on which this thread is running
+    int cpu = sched_getcpu();
+    // Print a message indicating the worker thread's rank
+    printf_sync("Worker thread %d, running on CPU %d\n", rank, cpu);
+
+    // Set the CPU affinity of half the threads to cpu 0 and the other half to cpu 1
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset); // Initialize the CPU set
+    if (rank < THREADS / 2)
+    {
+        CPU_SET(0, &cpuset); // Set the CPU affinity to CPU 0 for the first half of the threads
+    }
+    else
+    {
+        CPU_SET(1, &cpuset); // Set the CPU affinity to CPU 1 for the second half of the threads
+    }
+    // Set the CPU affinity for the current thread
+    sched_setaffinity(0, sizeof(cpuset), &cpuset); // Set the CPU affinity to CPU 0 for the first half of the threads
+
+    // Simulate some work by the worker thread
+    for (int i = 0; i < ITERATIONS; i++)
+    {
+        // Do some computation
+        for (int j = 0; j < 1000; j++)
+        {
+            // do nothing, just simulate work
+        }
+        int new_cpu = sched_getcpu(); // Get the CPU again
+        if (new_cpu != cpu)           // Check if the CPU has changed
+        {
+            printf_sync("Worker thread %d moved from CPU %d to CPU %d\n", rank, cpu, new_cpu);
+            cpu = new_cpu; // Update the CPU variable
+        }
+    }
+    return NULL;
+}
+
+int main()
+{
+    // Create an array of worker threads
+    pthread_t threads[THREADS];
+    // Create an array to hold thread ranks
+    int thread_ranks[THREADS];
+    // Available logical cores
+    int logical_cores = get_nprocs(); // Get the number of available logical cores
+    assert(logical_cores > 1);        // Ensure that we have at least two logical cores
+    // Create and start each worker thread
+    for (int i = 0; i < THREADS; i++)
+    {
+        thread_ranks[i] = i;
+        if (pthread_create(&threads[i], NULL, worker, &thread_ranks[i]) != 0)
+        {
+            perror("Failed to create thread");
+            return 1;
+        }
+    }
+    // Wait for all worker threads to finish
+    for (int i = 0; i < THREADS; i++)
+    {
+        pthread_join(threads[i], NULL);
+    }
+    return 0;
+}
+```
+
+Es igual al anterior solo que la primer mitad de los hilos se ejecutan en el core 0 y la segunda mitad en el core 1.
+
 ##### a. ¿En qué core se ejecutarán los procesos con `rank < THREADS / 2`?
+
+En el core 0.
 
 ##### b. Ejecute `./affinity_half_and_half` y observe la asignación de cores de forma similar al punto 4. De nuevo puede filtrar un hilo con `grep` para más claridad.
 
-##### c. ¿Los hilos que arrancan un core dado siguen toda su ejecución en el mismo core? ¿Por qué?
+```sh
+root@so:/home/so/codigo-para-practicas/practica6# ./affinity_half_and_half
+Worker thread 1, running on CPU 3
+Worker thread 0, running on CPU 3
+Worker thread 3, running on CPU 5
+Worker thread 4, running on CPU 5
+Worker thread 2, running on CPU 2
+Worker thread 7, running on CPU 3
+Worker thread 3 moved from CPU 5 to CPU 0
+Worker thread 8, running on CPU 3
+Worker thread 9, running on CPU 5
+Worker thread 7 moved from CPU 3 to CPU 1
+Worker thread 6, running on CPU 1
+Worker thread 11, running on CPU 4
+Worker thread 8 moved from CPU 3 to CPU 1
+Worker thread 4 moved from CPU 5 to CPU 0
+Worker thread 9 moved from CPU 5 to CPU 1
+Worker thread 2 moved from CPU 2 to CPU 0
+Worker thread 5, running on CPU 5
+Worker thread 10, running on CPU 2
+Worker thread 11 moved from CPU 4 to CPU 1
+Worker thread 1 moved from CPU 3 to CPU 0
+Worker thread 10 moved from CPU 2 to CPU 1
+Worker thread 0 moved from CPU 3 to CPU 0
+Worker thread 5 moved from CPU 5 to CPU 0
+```
+
+```sh
+root@so:/home/so/codigo-para-practicas/practica6# ./affinity_half_and_half | grep "thread 4[, ]"
+Worker thread 4, running on CPU 2
+Worker thread 4 moved from CPU 2 to CPU 0
+root@so:/home/so/codigo-para-practicas/practica6# ./affinity_half_and_half | grep "thread 4[, ]"
+Worker thread 4, running on CPU 1
+Worker thread 4 moved from CPU 1 to CPU 0
+root@so:/home/so/codigo-para-practicas/practica6# ./affinity_half_and_half | grep "thread 4[, ]"
+Worker thread 4, running on CPU 5
+Worker thread 4 moved from CPU 5 to CPU 0
+root@so:/home/so/codigo-para-practicas/practica6# ./affinity_half_and_half | grep "thread 4[, ]"
+Worker thread 4, running on CPU 4
+Worker thread 4 moved from CPU 4 to CPU 0
+```
+
+El hilo 4 empieza a ejecutarse en cualquier core que el SO les asigna, pero luego siempre se lo mueve al core 0 debido a la lógica ya explicada.
+
+##### c. ¿Los hilos que arrancan en un core dado siguen toda su ejecución en el mismo core? ¿Por qué?
+
+Los hilos que arrancan en un core particular **no necesariamente** siguen toda su ejecución en el mismo core:
+
+- Los hilos empiezan en un core aleatorio (asignado por el scheduler en el momento de creación).
+- Luego, el código fuerza la afinidad con `sched_setaffinity`, lo que los mueve al core especificado (0 o 1).
